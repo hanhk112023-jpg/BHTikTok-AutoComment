@@ -79,16 +79,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
-          tag_name: v2.0.0-autocomment
-          name: "TikTok Auto-Comment v2.0.0 (Esign, Scarlet & TrollFools)"
+          tag_name: v2.1.0-autocomment
+          name: "TikTok Auto-Comment v2.1.0 (Hashtag Manager & Reliable Native Comment)"
           body: |
-            Tự động comment mã vé nhảy Liên Quân trên TikTok iOS:
-            - **`TikTokAutoComment_LQ.dylib` (KHUYÊN DÙNG CHO ESIGN / SCARLET / GBOX)**: 
-              - Hoạt động 100% độc lập, KHÔNG CẦN CydiaSubstrate, không cần Jailbreak!
-              - Tự động nhận diện hashtag `#lienquan`, `#aov`, `#lienquanmobile` từ server JSON.
-              - Có nút 🎮 nổi trên màn hình để bật/tắt, chỉnh sửa nội dung comment, bật auto-scroll.
-              - Báo banner thông báo xanh ngay khi mở app xác nhận đã kích hoạt thành công.
-            - **`BHTikTok_AutoComment_TrollFools.dylib`**: Bản mod BHTikTok đầy đủ tính năng tải video/chống quảng cáo.
+            TikTok Auto-Comment Tweak v2.1.0 cho iOS (Esign, Scarlet, TrollFools):
+            - **Tự do thêm / xóa Hashtag**: Tùy chỉnh danh sách từ khóa quét theo ý muốn ngay trong app qua nút 🎮.
+            - **Sửa triệt để lỗi Auto-Comment**: Tìm nút Comment chuẩn theo cấu trúc dọc cạnh phải và kích hoạt delegate gửi comment của TikTok.
+            - **Tùy chọn tự động gắn Hashtag**: Tự động ghép hashtag vào đuôi câu bình luận.
+            - **Tùy chỉnh thời gian chờ (Delay)**: 1.5s, 2.5s, 4.0s, 6.0s chống checkpoint.
+            - **Tự động cuộn (Auto-Scroll)** mượt mà sang video tiếp theo.
+            - **100% Zero-Dependency**: Không cần CydiaSubstrate, chạy mượt trên mọi chứng chỉ Esign / Scarlet.
           files: |
             TikTokAutoComment_LQ.dylib
             BHTikTok_AutoComment*.dylib
