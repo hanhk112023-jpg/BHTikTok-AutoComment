@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Compile BHTikTok dylib
@@ -19,17 +22,27 @@ jobs:
       - name: Setup Theos & iOS SDK
         run: |
           git clone --recursive https://github.com/theos/theos.git ~/theos
-          git clone --depth=1 https://github.com/theos/sdks.git ~/theos/sdks
+          git clone --depth=1 https://github.com/theos/sdks.git /tmp/theos-sdks
+          cp -r /tmp/theos-sdks/*.sdk ~/theos/sdks/
+          ls -la ~/theos/sdks/
 
       - name: Build Tweak
-        env:
-          THEOS: ${{ runner.workspace }}/../theos
         run: |
           export THEOS=$HOME/theos
+          make clean
           make package FINALPACKAGE=1
-          ls -la .theos/obj/ || true
-          find .theos/ -name "*.dylib" -exec cp {} ./BHTikTok_AutoComment.dylib \;
-          ls -lh BHTikTok_AutoComment.dylib || true
+          mkdir -p output
+          find .theos/ -name "*.dylib" -exec cp {} output/BHTikTok_AutoComment.dylib \;
+          cp output/BHTikTok_AutoComment.dylib ./BHTikTok_AutoComment.dylib || true
+          ls -lh ./BHTikTok_AutoComment.dylib
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: BHTikTok-AutoComment-dylib
+          path: |
+            BHTikTok_AutoComment.dylib
+            packages/*.deb
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -45,11 +58,3 @@ jobs:
             packages/*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: BHTikTok-AutoComment-Binary
-          path: |
-            BHTikTok_AutoComment.dylib
-            packages/*.deb
