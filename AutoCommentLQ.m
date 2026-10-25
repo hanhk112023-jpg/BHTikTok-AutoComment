@@ -659,7 +659,6 @@ static void injectTextIntoInputView(UIView *inputView, NSString *text) {
             [del textViewDidChange:tv];
         }
         [[NSNotificationCenter defaultCenter] postNotificationName:UITextViewTextDidChangeNotification object:tv];
-        [tv sendActionsForControlEvents:UIControlEventEditingChanged];
         NSLog(@"[TikTok-LQ] ✍️ Đã điền text vào UITextView và kích hoạt delegate!");
 
     } else if ([inputView isKindOfClass:[UITextField class]]) {
