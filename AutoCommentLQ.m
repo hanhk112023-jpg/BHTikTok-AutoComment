@@ -16,6 +16,8 @@
 #define PREF_REMOVE_WATERMARK @"lq_remove_watermark"
 #define PREF_PROGRESS_BAR @"lq_progress_bar"
 #define PREF_EXTENDED_COMMENT @"lq_extended_comment"
+#define PREF_TRANSPARENT_COMMENT @"lq_transparent_comment"
+#define PREF_FAKE_VERIFIED @"lq_fake_verified"
 
 #define DEFAULT_COMMENT_TEXT @"Nhập mã để được nhận 38 vé nhảy: avsqjyM3n7"
 #define DEFAULT_KEYWORDS_STR @"#lienquan,#aov,#lienquanmobile,liên quân"
@@ -62,6 +64,22 @@ static BOOL getExtendedCommentEnabled(void) {
 }
 static void setExtendedCommentEnabled(BOOL b) {
     [[NSUserDefaults standardUserDefaults] setBool:b forKey:PREF_EXTENDED_COMMENT];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+static BOOL getTransparentCommentEnabled(void) {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:PREF_TRANSPARENT_COMMENT];
+}
+static void setTransparentCommentEnabled(BOOL b) {
+    [[NSUserDefaults standardUserDefaults] setBool:b forKey:PREF_TRANSPARENT_COMMENT];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+static BOOL getFakeVerifiedEnabled(void) {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:PREF_FAKE_VERIFIED];
+}
+static void setFakeVerifiedEnabled(BOOL b) {
+    [[NSUserDefaults standardUserDefaults] setBool:b forKey:PREF_FAKE_VERIFIED];
     [[NSUserDefaults standardUserDefaults] synchronize];
 }
 
@@ -139,7 +157,7 @@ static void setCommentDelay(CGFloat d) {
 
 // Runtime tracking
 static NSMutableSet<NSString *> *sCommentedAwemeIDs = nil;
-static NSString *sCurrentlyPendingAwemeID = nil;
+static NSString *sCurrentlyPlayingAwemeID = nil;
 static NSString *sCurrentlyPendingMatchedTag = nil;
 
 // Forward declaration
@@ -378,7 +396,7 @@ static void setupHomeTabGesturesOnWindow(UIWindow *window) {
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    if (section == 0) return @"Hệ thống sẽ quét caption video. Nếu chứa bất kỳ từ khóa nào trên, video sẽ được tự động bình luận.";
+    if (section == 0) return @"Tweak quét cả phần mô tả (caption) và textExtra hashtag của video. Nếu khớp, video sẽ được tự động bình luận.";
     return @"";
 }
 
@@ -457,7 +475,7 @@ static void setupHomeTabGesturesOnWindow(UIWindow *window) {
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     switch (section) {
         case 0: return 5; // Tự động bình luận
-        case 1: return 4; // Tính năng Mod BHTikTok
+        case 1: return 6; // Tính năng Mod BHTikTok
         case 2: return 2; // Dọn dẹp & Bộ nhớ
         case 3: return 2; // Thống kê
         default: return 0;
@@ -467,7 +485,7 @@ static void setupHomeTabGesturesOnWindow(UIWindow *window) {
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
     switch (section) {
         case 0: return @"TỰ ĐỘNG BÌNH LUẬN (AUTO-COMMENT)";
-        case 1: return @"TÍNH NĂNG MOD & BẢO MẬT";
+        case 1: return @"TÍNH NĂNG BHTIKTOK MOD";
         case 2: return @"BỘ NHỚ & DỮ LIỆU";
         case 3: return @"THÔNG TIN";
         default: return @"";
@@ -496,7 +514,7 @@ static void setupHomeTabGesturesOnWindow(UIWindow *window) {
             if (t.length > 20) t = [[t substringToIndex:18] stringByAppendingString:@"..."];
             cell.detailTextLabel.text = t;
         } else if (indexPath.row == 2) {
-            cell.textLabel.text = @"Danh sách Hashtag";
+            cell.textLabel.text = @"Danh sách Hashtag quét";
             cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
             cell.detailTextLabel.text = [NSString stringWithFormat:@"%lu từ khóa", (unsigned long)getKeywords().count];
         } else if (indexPath.row == 3) {
@@ -532,10 +550,22 @@ static void setupHomeTabGesturesOnWindow(UIWindow *window) {
             [sw addTarget:self action:@selector(toggleProgressBar:) forControlEvents:UIControlEventValueChanged];
             cell.accessoryView = sw;
         } else if (indexPath.row == 3) {
-            cell.textLabel.text = @"Mở rộng độ dài bình luận";
+            cell.textLabel.text = @"Mở rộng độ dài bình luận (1000 ký tự)";
             UISwitch *sw = [[UISwitch alloc] init];
             sw.on = getExtendedCommentEnabled();
             [sw addTarget:self action:@selector(toggleExtendedComment:) forControlEvents:UIControlEventValueChanged];
+            cell.accessoryView = sw;
+        } else if (indexPath.row == 4) {
+            cell.textLabel.text = @"Khung bình luận trong suốt";
+            UISwitch *sw = [[UISwitch alloc] init];
+            sw.on = getTransparentCommentEnabled();
+            [sw addTarget:self action:@selector(toggleTransparentComment:) forControlEvents:UIControlEventValueChanged];
+            cell.accessoryView = sw;
+        } else if (indexPath.row == 5) {
+            cell.textLabel.text = @"Hiển thị tích xanh tài khoản";
+            UISwitch *sw = [[UISwitch alloc] init];
+            sw.on = getFakeVerifiedEnabled();
+            [sw addTarget:self action:@selector(toggleFakeVerified:) forControlEvents:UIControlEventValueChanged];
             cell.accessoryView = sw;
         }
     } else if (indexPath.section == 2) {
@@ -553,7 +583,7 @@ static void setupHomeTabGesturesOnWindow(UIWindow *window) {
             cell.selectionStyle = UITableViewCellSelectionStyleNone;
         } else if (indexPath.row == 1) {
             cell.textLabel.text = @"Phiên bản";
-            cell.detailTextLabel.text = @"v3.1.0 (Esign Ready)";
+            cell.detailTextLabel.text = @"v3.2.0 (Dual-Engine)";
             cell.selectionStyle = UITableViewCellSelectionStyleNone;
         }
     }
@@ -599,6 +629,8 @@ static void setupHomeTabGesturesOnWindow(UIWindow *window) {
 - (void)toggleWatermark:(UISwitch *)sw { setRemoveWatermarkEnabled(sw.on); }
 - (void)toggleProgressBar:(UISwitch *)sw { setProgressBarEnabled(sw.on); }
 - (void)toggleExtendedComment:(UISwitch *)sw { setExtendedCommentEnabled(sw.on); }
+- (void)toggleTransparentComment:(UISwitch *)sw { setTransparentCommentEnabled(sw.on); }
+- (void)toggleFakeVerified:(UISwitch *)sw { setFakeVerifiedEnabled(sw.on); }
 
 @end
 
@@ -647,7 +679,412 @@ static void SwizzleMethod(Class cls, SEL origSEL, SEL newSEL) {
 }
 
 // ==============================================================================
-// HOOK 1: AWEAwemeModel (CLEAN AD BLOCK & CAPTION TAG STORAGE)
+// COMMENT AUTOMATION PIPELINE
+// ==============================================================================
+
+static UIButton *findTikTokCommentButtonOnScreen(void) {
+    CGFloat screenWidth = [UIScreen mainScreen].bounds.size.width;
+    CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
+    NSMutableArray<UIButton *> *candidateButtons = [NSMutableArray array];
+
+    UIWindow *window = nil;
+    for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
+        if ([scene isKindOfClass:[UIWindowScene class]] && scene.activationState == UISceneActivationStateForegroundActive) {
+            for (UIWindow *w in scene.windows) { if (w.isKeyWindow) { window = w; break; } }
+            if (window) break;
+        }
+    }
+    if (!window) window = [UIApplication sharedApplication].windows.firstObject;
+    if (!window) return nil;
+
+    void (^scanViews)(UIView *) = ^(UIView *root) {
+        NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:root];
+        while (queue.count > 0) {
+            UIView *v = queue.firstObject;
+            [queue removeObjectAtIndex:0];
+
+            if ([v isKindOfClass:[UIButton class]] && !v.hidden && v.alpha > 0.4) {
+                UIButton *b = (UIButton *)v;
+                CGRect r = [b convertRect:b.bounds toView:nil];
+                if (r.origin.x > screenWidth * 0.65 &&
+                    r.origin.y > 100 && r.origin.y < screenHeight - 100 &&
+                    r.size.width >= 20 && r.size.width <= 90 &&
+                    r.size.height >= 20 && r.size.height <= 90) {
+                    [candidateButtons addObject:b];
+                }
+            }
+            [queue addObjectsFromArray:v.subviews];
+        }
+    };
+    scanViews(window);
+
+    if (candidateButtons.count == 0) return nil;
+
+    for (UIButton *b in candidateButtons) {
+        SEL imgSel = NSSelectorFromString(@"imageNameString");
+        NSString *imgName = @"";
+        if ([b respondsToSelector:imgSel]) {
+            #pragma clang diagnostic push
+            #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+            imgName = [b performSelector:imgSel] ?: @"";
+            #pragma clang diagnostic pop
+        }
+        NSString *acc = b.accessibilityLabel ?: @"";
+        if ([imgName localizedCaseInsensitiveContainsString:@"comment"] ||
+            [acc localizedCaseInsensitiveContainsString:@"comment"] ||
+            [acc localizedCaseInsensitiveContainsString:@"bình luận"]) {
+            return b;
+        }
+    }
+
+    [candidateButtons sortUsingComparator:^NSComparisonResult(UIButton *b1, UIButton *b2) {
+        CGRect r1 = [b1 convertRect:b1.bounds toView:nil];
+        CGRect r2 = [b2 convertRect:b2.bounds toView:nil];
+        if (r1.origin.y < r2.origin.y) return NSOrderedAscending;
+        if (r1.origin.y > r2.origin.y) return NSOrderedDescending;
+        return NSOrderedSame;
+    }];
+
+    if (candidateButtons.count >= 2) {
+        return candidateButtons[1];
+    }
+    return candidateButtons.firstObject;
+}
+
+static UIView *findActiveTextInput(UIView *root) {
+    if (!root) return nil;
+    if (([root isKindOfClass:[UITextView class]] || [root isKindOfClass:[UITextField class]]) && root.window != nil) {
+        return root;
+    }
+    for (UIView *sub in root.subviews) {
+        UIView *f = findActiveTextInput(sub);
+        if (f) return f;
+    }
+    return nil;
+}
+
+static UIView *findCommentPlaceholderBar(UIView *root) {
+    if (!root) return nil;
+    CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
+    NSMutableArray<UIView *> *candidates = [NSMutableArray array];
+
+    void (^scanBottom)(UIView *) = ^(UIView *p) {
+        NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:p];
+        while (queue.count > 0) {
+            UIView *v = queue.firstObject;
+            [queue removeObjectAtIndex:0];
+            CGRect r = [v convertRect:v.bounds toView:nil];
+            if (r.origin.y > screenHeight - 160 && r.size.width > 120 && r.size.height >= 24 && r.size.height <= 70) {
+                if ([v isKindOfClass:[UIControl class]] || [v isKindOfClass:[UIButton class]] || v.gestureRecognizers.count > 0) {
+                    [candidates addObject:v];
+                }
+            }
+            [queue addObjectsFromArray:v.subviews];
+        }
+    };
+    scanBottom(root);
+    return candidates.firstObject;
+}
+
+static UIButton *findSendButtonNearInput(UIView *root, UIView *inputView) {
+    if (!root) return nil;
+    NSMutableArray<UIButton *> *buttons = [NSMutableArray array];
+
+    void (^scanBtns)(UIView *) = ^(UIView *p) {
+        NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:p];
+        while (queue.count > 0) {
+            UIView *v = queue.firstObject;
+            [queue removeObjectAtIndex:0];
+            if ([v isKindOfClass:[UIButton class]] && !v.hidden && v.alpha > 0.4) {
+                UIButton *b = (UIButton *)v;
+                NSString *acc = b.accessibilityLabel ?: @"";
+                NSString *title = [b titleForState:UIControlStateNormal] ?: @"";
+                if ([acc localizedCaseInsensitiveContainsString:@"send"] ||
+                    [acc localizedCaseInsensitiveContainsString:@"gửi"] ||
+                    [acc localizedCaseInsensitiveContainsString:@"post"] ||
+                    [title localizedCaseInsensitiveContainsString:@"gửi"] ||
+                    [title localizedCaseInsensitiveContainsString:@"send"] ||
+                    [title localizedCaseInsensitiveContainsString:@"đăng"]) {
+                    [buttons insertObject:b atIndex:0];
+                } else {
+                    [buttons addObject:b];
+                }
+            }
+            [queue addObjectsFromArray:v.subviews];
+        }
+    };
+    scanBtns(root);
+
+    if (buttons.count > 0) return buttons.firstObject;
+
+    if (inputView) {
+        CGRect inputRect = [inputView convertRect:inputView.bounds toView:nil];
+        for (UIButton *b in buttons) {
+            CGRect bRect = [b convertRect:b.bounds toView:nil];
+            if (bRect.origin.x > inputRect.origin.x + inputRect.size.width - 60 && fabs(bRect.origin.y - inputRect.origin.y) < 45) {
+                return b;
+            }
+        }
+    }
+    return nil;
+}
+
+static void fillTextIntoInput(UIView *inputView, NSString *text) {
+    if ([inputView isKindOfClass:[UITextView class]]) {
+        UITextView *tv = (UITextView *)inputView;
+        id<UITextViewDelegate> del = tv.delegate;
+        if ([del respondsToSelector:@selector(textView:shouldChangeTextInRange:replacementText:)]) {
+            [del textView:tv shouldChangeTextInRange:NSMakeRange(0, tv.text.length) replacementText:text];
+        }
+        tv.text = text;
+        if ([del respondsToSelector:@selector(textViewDidChange:)]) {
+            [del textViewDidChange:tv];
+        }
+        [[NSNotificationCenter defaultCenter] postNotificationName:UITextViewTextDidChangeNotification object:tv];
+    } else if ([inputView isKindOfClass:[UITextField class]]) {
+        UITextField *tf = (UITextField *)inputView;
+        id<UITextFieldDelegate> del = tf.delegate;
+        if ([del respondsToSelector:@selector(textField:shouldChangeCharactersInRange:replacementString:)]) {
+            [del textField:tf shouldChangeCharactersInRange:NSMakeRange(0, tf.text.length) replacementString:text];
+        }
+        tf.text = text;
+        [[NSNotificationCenter defaultCenter] postNotificationName:UITextFieldTextDidChangeNotification object:tf];
+        [tf sendActionsForControlEvents:UIControlEventEditingChanged];
+    }
+}
+
+static void executeRealCommentSubmission(UIWindow *window, NSString *finalMsg, NSString *targetAwemeId) {
+    UIView *inputView = findActiveTextInput(window);
+
+    void (^typeAndSend)(UIView *) = ^(UIView *activeInput) {
+        if (!activeInput) return;
+        [activeInput becomeFirstResponder];
+        fillTextIntoInput(activeInput, finalMsg);
+
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            UIButton *sendBtn = findSendButtonNearInput(window, activeInput);
+            if (sendBtn) {
+                [sendBtn sendActionsForControlEvents:UIControlEventTouchUpInside];
+                showToastBanner(@"Đã gửi bình luận thành công!", 2.0);
+            } else {
+                if ([activeInput isKindOfClass:[UITextView class]]) {
+                    UITextView *tv = (UITextView *)activeInput;
+                    if ([tv.delegate respondsToSelector:@selector(textView:shouldChangeTextInRange:replacementText:)]) {
+                        [tv.delegate textView:tv shouldChangeTextInRange:NSMakeRange(tv.text.length, 0) replacementText:@"\n"];
+                    }
+                }
+                showToastBanner(@"Đã nhập bình luận thành công!", 2.0);
+            }
+
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                [activeInput resignFirstResponder];
+
+                if (getAutoScroll()) {
+                    for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
+                        if ([scene isKindOfClass:[UIWindowScene class]] && scene.activationState == UISceneActivationStateForegroundActive) {
+                            for (UIWindow *w in scene.windows) {
+                                UIViewController *root = w.rootViewController;
+                                if ([root respondsToSelector:@selector(scrollToNextVideo)]) {
+                                    [root performSelector:@selector(scrollToNextVideo)];
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    };
+
+    if (inputView) {
+        typeAndSend(inputView);
+    } else {
+        UIView *placeholder = findCommentPlaceholderBar(window);
+        if (placeholder) {
+            if ([placeholder respondsToSelector:@selector(sendActionsForControlEvents:)]) {
+                [((UIControl *)placeholder) sendActionsForControlEvents:UIControlEventTouchUpInside];
+            }
+            for (UIGestureRecognizer *g in placeholder.gestureRecognizers) {
+                if ([g isKindOfClass:[UITapGestureRecognizer class]]) {
+                    UITapGestureRecognizer *tap = (UITapGestureRecognizer *)g;
+                    for (id target in [tap valueForKey:@"_targets"]) {
+                        id actTarget = [target valueForKey:@"_target"];
+                        SEL actSel = NSSelectorFromString([target valueForKey:@"_action"]);
+                        if (actTarget && [actTarget respondsToSelector:actSel]) {
+                            #pragma clang diagnostic push
+                            #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+                            [actTarget performSelector:actSel withObject:tap];
+                            #pragma clang diagnostic pop
+                        }
+                    }
+                }
+            }
+        }
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            UIView *recheckedInput = findActiveTextInput(window);
+            typeAndSend(recheckedInput);
+        });
+    }
+}
+
+// ==============================================================================
+// UNIVERSAL VIDEO & HASHTAG PROCESSOR
+// ==============================================================================
+
+static NSString *stripAccentsAndLowercase(NSString *src) {
+    if (!src) return @"";
+    NSMutableString *str = [src mutableCopy];
+    CFStringTransform((__bridge CFMutableStringRef)str, NULL, kCFStringTransformStripCombiningMarks, NO);
+    return [str lowercaseString];
+}
+
+static void processVideoModelForAutoComment(id model) {
+    if (!getAutoCommentEnabled() || !model) return;
+
+    NSString *itemId = nil;
+    @try {
+        itemId = [model valueForKey:@"itemID"] ?: [model valueForKey:@"awemeId"] ?: [model valueForKey:@"aid"];
+        if (itemId) itemId = [NSString stringWithFormat:@"%@", itemId];
+    } @catch (NSException *e) {}
+
+    if (!itemId || itemId.length == 0) return;
+    if ([sCommentedAwemeIDs containsObject:itemId]) return;
+
+    // 1. Quét text mô tả (caption)
+    NSMutableString *searchableText = [NSMutableString string];
+    @try {
+        NSString *desc = [model valueForKey:@"descriptionString"] ?: [model valueForKey:@"desc"] ?: [model valueForKey:@"title"];
+        if (desc) [searchableText appendFormat:@"%@ ", desc];
+    } @catch (NSException *e) {}
+
+    // 2. Quét mảng textExtra (chứa hashtag của TikTok)
+    @try {
+        id textExtras = [model valueForKey:@"textExtra"];
+        if ([textExtras isKindOfClass:[NSArray class]]) {
+            for (id extra in (NSArray *)textExtras) {
+                NSString *ht = [extra valueForKey:@"hashtagName"] ?: [extra valueForKey:@"tag"];
+                if (ht && [ht isKindOfClass:[NSString class]]) {
+                    [searchableText appendFormat:@"#%@ %@ ", ht, ht];
+                }
+            }
+        }
+    } @catch (NSException *e) {}
+
+    if (searchableText.length == 0) return;
+
+    NSString *normalizedText = stripAccentsAndLowercase(searchableText);
+    NSString *matchedTag = nil;
+
+    for (NSString *rawKw in getKeywords()) {
+        NSString *normKw = stripAccentsAndLowercase(rawKw);
+        NSString *normKwWithoutHash = [normKw stringByReplacingOccurrencesOfString:@"#" withString:@""];
+        if ([normalizedText containsString:normKw] || (normKwWithoutHash.length > 2 && [normalizedText containsString:normKwWithoutHash])) {
+            matchedTag = rawKw;
+            break;
+        }
+    }
+
+    if (!matchedTag) return; // Không khớp từ khóa -> Bỏ qua
+
+    // Khớp từ khóa! Đánh dấu đã comment để không comment trùng
+    [sCommentedAwemeIDs addObject:itemId];
+    sCurrentlyPlayingAwemeID = itemId;
+    sCurrentlyPendingMatchedTag = matchedTag;
+
+    CGFloat delaySec = getCommentDelay();
+    showToastBanner([NSString stringWithFormat:@"🎯 Khớp [%@]!\n⏳ Tự động comment sau %.1fs...", matchedTag, delaySec], delaySec + 0.5);
+
+    NSString *baseText = getCommentText();
+    NSMutableString *fullComment = [NSMutableString stringWithString:baseText];
+    if (getAppendMatchedTag() && matchedTag.length > 0) {
+        if (![matchedTag hasPrefix:@"#"]) {
+            [fullComment appendFormat:@" #%@", matchedTag];
+        } else {
+            [fullComment appendFormat:@" %@", matchedTag];
+        }
+    }
+
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delaySec * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        // Kiểm tra lại: nếu người dùng đã chuyển sang video khác thì hủy lệnh
+        if (sCurrentlyPlayingAwemeID && ![sCurrentlyPlayingAwemeID isEqualToString:itemId]) {
+            NSLog(@"[TikTok-LQ] ⚠️ Đã lướt qua video khác, hủy bình luận video %@", itemId);
+            return;
+        }
+
+        UIWindow *window = nil;
+        for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            if ([scene isKindOfClass:[UIWindowScene class]] && scene.activationState == UISceneActivationStateForegroundActive) {
+                for (UIWindow *w in scene.windows) { if (w.isKeyWindow) { window = w; break; } }
+                if (window) break;
+            }
+        }
+        if (!window) window = [UIApplication sharedApplication].windows.firstObject;
+
+        UIButton *commentBtn = findTikTokCommentButtonOnScreen();
+        if (commentBtn) {
+            [commentBtn sendActionsForControlEvents:UIControlEventTouchUpInside];
+            SEL touchUpSel = NSSelectorFromString(@"_onTouchUpInside");
+            if ([commentBtn respondsToSelector:touchUpSel]) {
+                #pragma clang diagnostic push
+                #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+                [commentBtn performSelector:touchUpSel];
+                #pragma clang diagnostic pop
+            }
+
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                executeRealCommentSubmission(window, fullComment, itemId);
+            });
+        } else {
+            executeRealCommentSubmission(window, fullComment, itemId);
+        }
+    });
+}
+
+// ==============================================================================
+// HOOK 1: AWEPlayVideoPlayerController (PRIMARY PLAYBACK TRIGGER)
+// ==============================================================================
+
+@interface NSObject (LQPlayerHook)
+- (void)lq_containerDidFullyDisplayWithReason:(NSInteger)reason;
+@end
+
+@implementation NSObject (LQPlayerHook)
+
+- (void)lq_containerDidFullyDisplayWithReason:(NSInteger)reason {
+    [self lq_containerDidFullyDisplayWithReason:reason];
+
+    @try {
+        id container = [self respondsToSelector:@selector(container)] ? [self performSelector:@selector(container)] : nil;
+        id currentModel = nil;
+
+        if (container) {
+            if ([container respondsToSelector:@selector(model)]) {
+                currentModel = [container performSelector:@selector(model)];
+            }
+            if (!currentModel && [container respondsToSelector:@selector(parentViewController)]) {
+                UIViewController *p = [container performSelector:@selector(parentViewController)];
+                while (p) {
+                    if ([p respondsToSelector:@selector(currentAweme)]) {
+                        currentModel = [p performSelector:@selector(currentAweme)];
+                        if (currentModel) break;
+                    }
+                    p = p.parentViewController;
+                }
+            }
+        }
+
+        if (currentModel) {
+            processVideoModelForAutoComment(currentModel);
+        }
+    } @catch (NSException *e) {
+        NSLog(@"[TikTok-LQ] Exception in containerDidFullyDisplay: %@", e);
+    }
+}
+
+@end
+
+// ==============================================================================
+// HOOK 2: AWEAwemeModel (AD-BLOCK, PROGRESS BAR, WATERMARK)
 // ==============================================================================
 
 @interface NSObject (LQAwemeHook)
@@ -692,7 +1129,7 @@ static void SwizzleMethod(Class cls, SEL origSEL, SEL newSEL) {
 - (id)lq_initWithDictionary:(id)arg1 error:(id *)arg2 {
     id orig = [self lq_initWithDictionary:arg1 error:arg2];
 
-    // CHẶN QUẢNG CÁO CHUẨN (KHÔNG ĐỤNG ĐẾN isAds METHOD ĐỂ TRÁNH HỎNG APP)
+    // CHẶN QUẢNG CÁO BHTIKTOK (AD-BLOCK TRẢ VỀ NIL ĐỂ GỠ BỎ HOÀN TOÀN)
     if (getHideAdsEnabled() && orig) {
         BOOL isAdItem = NO;
         @try {
@@ -712,37 +1149,8 @@ static void SwizzleMethod(Class cls, SEL origSEL, SEL newSEL) {
         }
 
         if (isAdItem) {
-            NSLog(@"[TikTok-AdBlock] 🛡️ Loại bỏ triệt để video quảng cáo khỏi Feed!");
-            return nil; // Trả về nil để TikTok loại khỏi danh sách video
-        }
-    }
-
-    if (orig && [arg1 isKindOfClass:[NSDictionary class]]) {
-        NSDictionary *dict = (NSDictionary *)arg1;
-        NSString *rawDesc = dict[@"desc"];
-        NSString *rawAid = dict[@"aweme_id"];
-        if (!rawAid && dict[@"aid"]) rawAid = [NSString stringWithFormat:@"%@", dict[@"aid"]];
-
-        if (rawDesc && [rawDesc isKindOfClass:[NSString class]]) {
-            objc_setAssociatedObject(orig, "lq_caption", rawDesc, OBJC_ASSOCIATION_COPY_NONATOMIC);
-            
-            NSString *lower = [rawDesc lowercaseString];
-            NSString *matchedWord = nil;
-            for (NSString *kw in getKeywords()) {
-                if ([lower containsString:kw]) {
-                    matchedWord = kw;
-                    break;
-                }
-            }
-
-            if (matchedWord) {
-                objc_setAssociatedObject(orig, "lq_matched", @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-                objc_setAssociatedObject(orig, "lq_matched_tag", matchedWord, OBJC_ASSOCIATION_COPY_NONATOMIC);
-            }
-        }
-
-        if (rawAid) {
-            objc_setAssociatedObject(orig, "lq_aweme_id", [NSString stringWithFormat:@"%@", rawAid], OBJC_ASSOCIATION_COPY_NONATOMIC);
+            NSLog(@"[TikTok-AdBlock] 🛡️ Loại bỏ video quảng cáo khỏi danh sách phát!");
+            return nil;
         }
     }
     return orig;
@@ -751,13 +1159,15 @@ static void SwizzleMethod(Class cls, SEL origSEL, SEL newSEL) {
 @end
 
 // ==============================================================================
-// HOOK 2: BHTikTok Extra Features
+// HOOK 3: BHTikTok Extra Features (Watermark, Bio, Comment Length, Verified)
 // ==============================================================================
 
 @interface NSObject (LQExtraFeaturesHook)
 - (NSUInteger)lq_watermarkType;
 - (void)lq_setWatermarkType:(NSUInteger)type;
 - (NSUInteger)lq_maxLength;
+- (NSInteger)lq_maxTextLength;
+- (BOOL)lq_isVerifiedUser;
 @end
 
 @implementation NSObject (LQExtraFeaturesHook)
@@ -780,352 +1190,20 @@ static void SwizzleMethod(Class cls, SEL origSEL, SEL newSEL) {
     return [self lq_maxLength];
 }
 
+- (NSInteger)lq_maxTextLength {
+    if (getExtendedCommentEnabled()) return 500;
+    return [self lq_maxTextLength];
+}
+
+- (BOOL)lq_isVerifiedUser {
+    if (getFakeVerifiedEnabled()) return YES;
+    return [self lq_isVerifiedUser];
+}
+
 @end
 
 // ==============================================================================
-// COMMENT AUTOMATION ENGINE
-// ==============================================================================
-
-static UIButton *findTikTokCommentButtonOnScreen(void) {
-    CGFloat screenWidth = [UIScreen mainScreen].bounds.size.width;
-    CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
-    NSMutableArray<UIButton *> *candidateButtons = [NSMutableArray array];
-
-    UIWindow *window = nil;
-    for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
-        if ([scene isKindOfClass:[UIWindowScene class]] && scene.activationState == UISceneActivationStateForegroundActive) {
-            for (UIWindow *w in scene.windows) { if (w.isKeyWindow) { window = w; break; } }
-            if (window) break;
-        }
-    }
-    if (!window) window = [UIApplication sharedApplication].windows.firstObject;
-    if (!window) return nil;
-
-    void (^scanViews)(UIView *) = ^(UIView *root) {
-        NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:root];
-        while (queue.count > 0) {
-            UIView *v = queue.firstObject;
-            [queue removeObjectAtIndex:0];
-
-            if ([v isKindOfClass:[UIButton class]] && !v.hidden && v.alpha > 0.5) {
-                UIButton *b = (UIButton *)v;
-                CGRect r = [b convertRect:b.bounds toView:nil];
-                if (r.origin.x > screenWidth * 0.70 &&
-                    r.origin.y > 120 && r.origin.y < screenHeight - 110 &&
-                    r.size.width >= 24 && r.size.width <= 90 &&
-                    r.size.height >= 24 && r.size.height <= 90) {
-                    [candidateButtons addObject:b];
-                }
-            }
-            [queue addObjectsFromArray:v.subviews];
-        }
-    };
-    scanViews(window);
-
-    if (candidateButtons.count == 0) return nil;
-
-    [candidateButtons sortUsingComparator:^NSComparisonResult(UIButton *b1, UIButton *b2) {
-        CGRect r1 = [b1 convertRect:b1.bounds toView:nil];
-        CGRect r2 = [b2 convertRect:b2.bounds toView:nil];
-        if (r1.origin.y < r2.origin.y) return NSOrderedAscending;
-        if (r1.origin.y > r2.origin.y) return NSOrderedDescending;
-        return NSOrderedSame;
-    }];
-
-    for (UIButton *b in candidateButtons) {
-        SEL imgSel = NSSelectorFromString(@"imageNameString");
-        NSString *imgName = @"";
-        if ([b respondsToSelector:imgSel]) {
-            #pragma clang diagnostic push
-            #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-            imgName = [b performSelector:imgSel] ?: @"";
-            #pragma clang diagnostic pop
-        }
-        NSString *acc = b.accessibilityLabel ?: @"";
-        if ([imgName localizedCaseInsensitiveContainsString:@"comment"] ||
-            [acc localizedCaseInsensitiveContainsString:@"comment"] ||
-            [acc localizedCaseInsensitiveContainsString:@"bình luận"]) {
-            return b;
-        }
-    }
-
-    if (candidateButtons.count >= 2) {
-        return candidateButtons[1];
-    }
-    return candidateButtons.firstObject;
-}
-
-static UIView *findActiveTextInput(UIView *root) {
-    if (!root) return nil;
-    if (([root isKindOfClass:[UITextView class]] || [root isKindOfClass:[UITextField class]]) && root.window != nil) {
-        return root;
-    }
-    for (UIView *sub in root.subviews) {
-        UIView *f = findActiveTextInput(sub);
-        if (f) return f;
-    }
-    return nil;
-}
-
-static UIView *findCommentPlaceholderBar(UIView *root) {
-    if (!root) return nil;
-    CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
-    NSMutableArray<UIView *> *candidates = [NSMutableArray array];
-
-    void (^scanBottom)(UIView *) = ^(UIView *p) {
-        NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:p];
-        while (queue.count > 0) {
-            UIView *v = queue.firstObject;
-            [queue removeObjectAtIndex:0];
-            CGRect r = [v convertRect:v.bounds toView:nil];
-            if (r.origin.y > screenHeight - 150 && r.size.width > 120 && r.size.height >= 26 && r.size.height <= 65) {
-                if ([v isKindOfClass:[UIControl class]] || [v isKindOfClass:[UIButton class]] || v.gestureRecognizers.count > 0) {
-                    [candidates addObject:v];
-                }
-            }
-            [queue addObjectsFromArray:v.subviews];
-        }
-    };
-    scanBottom(root);
-    return candidates.firstObject;
-}
-
-static UIButton *findSendButtonNearInput(UIView *root, UIView *inputView) {
-    if (!root) return nil;
-    NSMutableArray<UIButton *> *buttons = [NSMutableArray array];
-
-    void (^scanBtns)(UIView *) = ^(UIView *p) {
-        NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:p];
-        while (queue.count > 0) {
-            UIView *v = queue.firstObject;
-            [queue removeObjectAtIndex:0];
-            if ([v isKindOfClass:[UIButton class]] && !v.hidden && v.alpha > 0.5) {
-                UIButton *b = (UIButton *)v;
-                NSString *acc = b.accessibilityLabel ?: @"";
-                NSString *title = [b titleForState:UIControlStateNormal] ?: @"";
-                if ([acc localizedCaseInsensitiveContainsString:@"send"] ||
-                    [acc localizedCaseInsensitiveContainsString:@"gửi"] ||
-                    [acc localizedCaseInsensitiveContainsString:@"post"] ||
-                    [title localizedCaseInsensitiveContainsString:@"gửi"] ||
-                    [title localizedCaseInsensitiveContainsString:@"send"] ||
-                    [title localizedCaseInsensitiveContainsString:@"đăng"]) {
-                    [buttons insertObject:b atIndex:0];
-                } else {
-                    [buttons addObject:b];
-                }
-            }
-            [queue addObjectsFromArray:v.subviews];
-        }
-    };
-    scanBtns(root);
-
-    if (buttons.count > 0) return buttons.firstObject;
-
-    if (inputView) {
-        CGRect inputRect = [inputView convertRect:inputView.bounds toView:nil];
-        for (UIButton *b in buttons) {
-            CGRect bRect = [b convertRect:b.bounds toView:nil];
-            if (bRect.origin.x > inputRect.origin.x + inputRect.size.width - 60 && fabs(bRect.origin.y - inputRect.origin.y) < 40) {
-                return b;
-            }
-        }
-    }
-    return nil;
-}
-
-static void fillTextIntoInput(UIView *inputView, NSString *text) {
-    if ([inputView isKindOfClass:[UITextView class]]) {
-        UITextView *tv = (UITextView *)inputView;
-        id<UITextViewDelegate> del = tv.delegate;
-        if ([del respondsToSelector:@selector(textView:shouldChangeTextInRange:replacementText:)]) {
-            [del textView:tv shouldChangeTextInRange:NSMakeRange(0, tv.text.length) replacementText:text];
-        }
-        tv.text = text;
-        if ([del respondsToSelector:@selector(textViewDidChange:)]) {
-            [del textViewDidChange:tv];
-        }
-        [[NSNotificationCenter defaultCenter] postNotificationName:UITextViewTextDidChangeNotification object:tv];
-    } else if ([inputView isKindOfClass:[UITextField class]]) {
-        UITextField *tf = (UITextField *)inputView;
-        id<UITextFieldDelegate> del = tf.delegate;
-        if ([del respondsToSelector:@selector(textField:shouldChangeCharactersInRange:replacementString:)]) {
-            [del textField:tf shouldChangeCharactersInRange:NSMakeRange(0, tf.text.length) replacementString:text];
-        }
-        tf.text = text;
-        [[NSNotificationCenter defaultCenter] postNotificationName:UITextFieldTextDidChangeNotification object:tf];
-        [tf sendActionsForControlEvents:UIControlEventEditingChanged];
-    }
-}
-
-static void executeRealCommentSubmission(UIWindow *window, NSString *finalMsg, UIView *cellView) {
-    UIView *inputView = findActiveTextInput(window);
-
-    void (^typeAndSend)(UIView *) = ^(UIView *activeInput) {
-        if (!activeInput) return;
-        [activeInput becomeFirstResponder];
-        fillTextIntoInput(activeInput, finalMsg);
-
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            UIButton *sendBtn = findSendButtonNearInput(window, activeInput);
-            if (sendBtn) {
-                [sendBtn sendActionsForControlEvents:UIControlEventTouchUpInside];
-                showToastBanner(@"Đã gửi bình luận thành công", 2.0);
-            } else {
-                if ([activeInput isKindOfClass:[UITextView class]]) {
-                    UITextView *tv = (UITextView *)activeInput;
-                    if ([tv.delegate respondsToSelector:@selector(textView:shouldChangeTextInRange:replacementText:)]) {
-                        [tv.delegate textView:tv shouldChangeTextInRange:NSMakeRange(tv.text.length, 0) replacementText:@"\n"];
-                    }
-                }
-                showToastBanner(@"Đã nhập bình luận", 2.0);
-            }
-
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                [activeInput resignFirstResponder];
-
-                if (getAutoScroll()) {
-                    UIView *v = cellView;
-                    while (v && ![v isKindOfClass:[UIScrollView class]]) {
-                        v = v.superview;
-                    }
-                    if ([v isKindOfClass:[UIScrollView class]]) {
-                        UIScrollView *scrollView = (UIScrollView *)v;
-                        CGPoint currentOffset = scrollView.contentOffset;
-                        CGFloat pageHeight = scrollView.bounds.size.height;
-                        [scrollView setContentOffset:CGPointMake(currentOffset.x, currentOffset.y + pageHeight) animated:YES];
-                    }
-                }
-            });
-        });
-    };
-
-    if (inputView) {
-        typeAndSend(inputView);
-    } else {
-        UIView *placeholder = findCommentPlaceholderBar(window);
-        if (placeholder) {
-            if ([placeholder respondsToSelector:@selector(sendActionsForControlEvents:)]) {
-                [((UIControl *)placeholder) sendActionsForControlEvents:UIControlEventTouchUpInside];
-            }
-            for (UIGestureRecognizer *g in placeholder.gestureRecognizers) {
-                if ([g isKindOfClass:[UITapGestureRecognizer class]]) {
-                    UITapGestureRecognizer *tap = (UITapGestureRecognizer *)g;
-                    for (id target in [tap valueForKey:@"_targets"]) {
-                        id actTarget = [target valueForKey:@"_target"];
-                        SEL actSel = NSSelectorFromString([target valueForKey:@"_action"]);
-                        if (actTarget && [actTarget respondsToSelector:actSel]) {
-                            #pragma clang diagnostic push
-                            #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-                            [actTarget performSelector:actSel withObject:tap];
-                            #pragma clang diagnostic pop
-                        }
-                    }
-                }
-            }
-        }
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            UIView *recheckedInput = findActiveTextInput(window);
-            typeAndSend(recheckedInput);
-        });
-    }
-}
-
-// ==============================================================================
-// PRECISION TRIGGER: ONLY TRIGGER ON-SCREEN VISIBLE PLAYING CELL
-// ==============================================================================
-
-static BOOL isCellTrulyPlayingOnScreen(UIView *cellView) {
-    if (!cellView || !cellView.window) return NO;
-    CGRect rectInWindow = [cellView convertRect:cellView.bounds toView:nil];
-    CGFloat screenCenterY = [UIScreen mainScreen].bounds.size.height / 2.0;
-    // Kiểm tra xem cell có đang bao phủ điểm chính giữa màn hình hay không
-    return (rectInWindow.origin.y <= screenCenterY && (rectInWindow.origin.y + rectInWindow.size.height) >= screenCenterY);
-}
-
-static void evaluateAndTriggerVideo(UIView *cellView, id model) {
-    if (!getAutoCommentEnabled() || !model || !cellView) return;
-
-    // 1. KIỂM TRA TỨC THÌ: CELL CÓ ĐANG NẰM CHÍNH GIỮA MÀN HÌNH KHÔNG?
-    // Nếu cell chỉ đang được pre-render/pre-load ở ngoài màn hình -> BỎ QUA NGAY!
-    if (!isCellTrulyPlayingOnScreen(cellView)) {
-        return;
-    }
-
-    NSString *awemeId = objc_getAssociatedObject(model, "lq_aweme_id");
-    if (!awemeId) {
-        @try {
-            awemeId = [model valueForKey:@"itemID"] ?: [model valueForKey:@"awemeId"] ?: [model valueForKey:@"aid"];
-        } @catch (NSException *e) {}
-    }
-    if (!awemeId || [sCommentedAwemeIDs containsObject:awemeId]) return;
-
-    NSString *caption = objc_getAssociatedObject(model, "lq_caption");
-    if (!caption) {
-        @try {
-            caption = [model valueForKey:@"descriptionString"] ?: [model valueForKey:@"desc"] ?: [model valueForKey:@"title"];
-        } @catch (NSException *e) {}
-    }
-    if (!caption || caption.length == 0) return;
-
-    NSString *lower = [caption lowercaseString];
-    NSString *matchedTag = nil;
-    for (NSString *kw in getKeywords()) {
-        if ([lower containsString:kw]) {
-            matchedTag = kw;
-            break;
-        }
-    }
-    if (!matchedTag) return; // Không khớp từ khóa -> Bỏ qua
-
-    // Khớp hashtag! Đánh dấu và chờ delay
-    [sCommentedAwemeIDs addObject:awemeId];
-    sCurrentlyPendingAwemeID = awemeId;
-    sCurrentlyPendingMatchedTag = matchedTag;
-
-    CGFloat delaySec = getCommentDelay();
-    showToastBanner([NSString stringWithFormat:@"Khớp [%@] • Đang chờ %.1fs...", matchedTag, delaySec], delaySec + 0.3);
-
-    NSString *baseText = getCommentText();
-    NSMutableString *fullComment = [NSMutableString stringWithString:baseText];
-    if (getAppendMatchedTag() && matchedTag.length > 0) {
-        if (![matchedTag hasPrefix:@"#"]) {
-            [fullComment appendFormat:@" #%@", matchedTag];
-        } else {
-            [fullComment appendFormat:@" %@", matchedTag];
-        }
-    }
-
-    // 2. SAU KHI HẾT THỜI GIAN DELAY: KIỂM TRA LẠI LẦN NỮA!
-    // Nếu người dùng đã lướt qua video khác rồi -> HỦY BỎ BÌNH LUẬN TRÁNH COMMENT NHẦM!
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delaySec * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        if (!isCellTrulyPlayingOnScreen(cellView)) {
-            NSLog(@"[TikTok-LQ] ⚠️ Người dùng đã lướt qua video khác, hủy lệnh comment!");
-            return;
-        }
-
-        UIWindow *window = cellView.window ?: [UIApplication sharedApplication].windows.firstObject;
-        UIButton *commentBtn = findTikTokCommentButtonOnScreen();
-        if (commentBtn) {
-            [commentBtn sendActionsForControlEvents:UIControlEventTouchUpInside];
-            SEL touchUpSel = NSSelectorFromString(@"_onTouchUpInside");
-            if ([commentBtn respondsToSelector:touchUpSel]) {
-                #pragma clang diagnostic push
-                #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-                [commentBtn performSelector:touchUpSel];
-                #pragma clang diagnostic pop
-            }
-
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                executeRealCommentSubmission(window, fullComment, cellView);
-            });
-        } else {
-            executeRealCommentSubmission(window, fullComment, cellView);
-        }
-    });
-}
-
-// ==============================================================================
-// HOOK 3: Feed Cells
+// HOOK 4: Feed Cells & Comments Panel
 // ==============================================================================
 
 @interface UIView (LQCellDisplayHook)
@@ -1138,17 +1216,44 @@ static void evaluateAndTriggerVideo(UIView *cellView, id model) {
 - (void)lq_configWithModel:(id)model {
     [self lq_configWithModel:model];
     setupHomeTabGesturesOnWindow(self.window);
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        evaluateAndTriggerVideo(self, model);
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        if (self.window) {
+            CGRect r = [self convertRect:self.bounds toView:nil];
+            CGFloat midY = [UIScreen mainScreen].bounds.size.height / 2.0;
+            if (r.origin.y <= midY && (r.origin.y + r.size.height) >= midY) {
+                processVideoModelForAutoComment(model);
+            }
+        }
     });
 }
 
 - (void)lq_configureWithModel:(id)model {
     [self lq_configureWithModel:model];
     setupHomeTabGesturesOnWindow(self.window);
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        evaluateAndTriggerVideo(self, model);
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        if (self.window) {
+            CGRect r = [self convertRect:self.bounds toView:nil];
+            CGFloat midY = [UIScreen mainScreen].bounds.size.height / 2.0;
+            if (r.origin.y <= midY && (r.origin.y + r.size.height) >= midY) {
+                processVideoModelForAutoComment(model);
+            }
+        }
     });
+}
+
+@end
+
+@interface UIViewController (LQCommentPanelVisualHook)
+- (void)lq_comment_viewWillAppear:(BOOL)animated;
+@end
+
+@implementation UIViewController (LQCommentPanelVisualHook)
+
+- (void)lq_comment_viewWillAppear:(BOOL)animated {
+    [self lq_comment_viewWillAppear:animated];
+    if (getTransparentCommentEnabled() && self.view) {
+        self.view.alpha = 0.88;
+    }
 }
 
 @end
@@ -1161,9 +1266,18 @@ __attribute__((constructor))
 static void initTikTokAutoCommentLienQuan(void) {
     @autoreleasepool {
         sCommentedAwemeIDs = [[NSMutableSet alloc] init];
-        NSLog(@"[TikTok-LQ] Standalone AutoComment LQ v3.1.0 Loaded!");
+        NSLog(@"[TikTok-LQ] Standalone AutoComment LQ v3.2.0 Loaded!");
 
-        // 1. Swizzle AWEAwemeModel
+        // 1. Swizzle AWEPlayVideoPlayerController (Primary video playback trigger)
+        Class playerCls = NSClassFromString(@"AWEPlayVideoPlayerController");
+        if (playerCls) {
+            if (class_getInstanceMethod(playerCls, @selector(containerDidFullyDisplayWithReason:))) {
+                SwizzleMethod(playerCls, @selector(containerDidFullyDisplayWithReason:), @selector(lq_containerDidFullyDisplayWithReason:));
+                NSLog(@"[TikTok-LQ] ✅ Swizzled AWEPlayVideoPlayerController containerDidFullyDisplayWithReason:");
+            }
+        }
+
+        // 2. Swizzle AWEAwemeModel (Ad-Block & Progress Bar)
         Class awemeCls = NSClassFromString(@"AWEAwemeModel");
         if (awemeCls) {
             SwizzleMethod(awemeCls, @selector(initWithDictionary:error:), @selector(lq_initWithDictionary:error:));
@@ -1179,7 +1293,7 @@ static void initTikTokAutoCommentLienQuan(void) {
             }
         }
 
-        // 2. Swizzle AWEAwemeACLItem (No Watermark)
+        // 3. Swizzle AWEAwemeACLItem (Watermark Removal)
         Class aclCls = NSClassFromString(@"AWEAwemeACLItem");
         if (aclCls) {
             if (class_getInstanceMethod(aclCls, @selector(watermarkType))) {
@@ -1190,15 +1304,21 @@ static void initTikTokAutoCommentLienQuan(void) {
             }
         }
 
-        // 3. Swizzle AWETextInputController (Comment Length)
+        // 4. Swizzle AWETextInputController (Comment & Bio Length)
         Class inputCls = NSClassFromString(@"AWETextInputController");
         if (inputCls) {
             if (class_getInstanceMethod(inputCls, @selector(maxLength))) {
                 SwizzleMethod(inputCls, @selector(maxLength), @selector(lq_maxLength));
             }
         }
+        Class bioCls = NSClassFromString(@"AWEProfileEditTextViewController");
+        if (bioCls) {
+            if (class_getInstanceMethod(bioCls, @selector(maxTextLength))) {
+                SwizzleMethod(bioCls, @selector(maxTextLength), @selector(lq_maxTextLength));
+            }
+        }
 
-        // 4. Swizzle Feed Cells
+        // 5. Swizzle Feed Cells
         NSArray *cellClassNames = @[@"AWEFeedViewTemplateCell", @"AWEAwemeDetailTableViewCell", @"TTKFeedViewCell", @"AWEFeedCell"];
         for (NSString *clsName in cellClassNames) {
             Class cls = NSClassFromString(clsName);
@@ -1212,7 +1332,16 @@ static void initTikTokAutoCommentLienQuan(void) {
             }
         }
 
-        // 5. Hiển thị thông báo hướng dẫn mở Menu
+        // 6. Swizzle Comment Sheet Transparency
+        NSArray *panelNames = @[@"TTKCommentPanelViewController", @"AWECommentPanelViewController"];
+        for (NSString *pName in panelNames) {
+            Class pCls = NSClassFromString(pName);
+            if (pCls && class_getInstanceMethod(pCls, @selector(viewWillAppear:))) {
+                SwizzleMethod(pCls, @selector(viewWillAppear:), @selector(lq_comment_viewWillAppear:));
+            }
+        }
+
+        // 7. Thiết lập cử chỉ Trang chủ khi app mở
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             UIWindow *w = [UIApplication sharedApplication].windows.firstObject;
             setupHomeTabGesturesOnWindow(w);
