@@ -79,17 +79,15 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
-          tag_name: v3.0.0-autocomment
-          name: "TikTok Auto-Comment v3.0.0 (Clean Cache, Home Tab Gestures & All Features)"
+          tag_name: v3.1.0-autocomment
+          name: "TikTok Auto-Comment & Mod v3.1.0 (Precision Auto-Detect, Native Settings UI & Fixed AdBlock)"
           body: |
-            TikTok Auto-Comment & BHTikTok All-in-One Mod v3.0.0 cho iOS (Esign, Scarlet, TrollFools):
-            - **Mở Menu bằng Cử Chỉ**: Nhấn giữ (Long-press >= 0.55s) hoặc chạm 2 lần (Double-tap) vào nút **Trang chủ** ở thanh dưới để mở Menu (màn hình hoàn toàn sạch bóng, ẩn nút nổi 🎮).
-            - **Dọn dẹp bộ nhớ đệm (Clean Cache)**: Quét sạch bộ nhớ đệm Caches, tmp, video tạm và giải phóng hàng trăm MB dung lượng app.
-            - **Quản lý Hashtag linh hoạt**: Tự thêm, xóa, quản lý từ khóa quét video theo chiến dịch.
-            - **Chặn quảng cáo (Ad Block)**: Lọc sạch video tài trợ, video quảng cáo và thẻ đề xuất trên Feed.
-            - **Tải video không Watermark / Logo**: Tự động gỡ watermark của TikTok khi tải video.
-            - **Thanh tua video (Progress Bar)**: Cho phép tua thanh tiến trình trên mọi video ngắn/dài.
-            - **Mở rộng bình luận**: Cho phép gõ comment dài lên đến 1000 ký tự.
+            TikTok Auto-Comment & BHTikTok All-in-One Mod v3.1.0 cho iOS (Esign, Scarlet, TrollFools):
+            - **Sửa triệt để Auto quét sai video**: Chỉ nhận diện và kích hoạt comment khi video THỰC SỰ đang phát chính giữa màn hình. Loại bỏ 100% tình trạng comment nhầm do pre-render cell ngầm hoặc khi người dùng đã lướt qua video khác.
+            - **Sửa lỗi gửi Comment**: Bổ sung cơ chế kích hoạt khung nhập liệu từ placeholder bar, tự động gõ chữ và bấm nút gửi chuẩn xác.
+            - **Sửa tính năng Chặn Quảng Cáo (Ad-Block)**: Lọc sạch video quảng cáo tài trợ và thẻ gợi ý lớn ngay từ tầng dữ liệu JSON mà không làm hỏng logic của TikTok.
+            - **Giao diện Cài Đặt Chuẩn Apple Native (Không icon rác)**: Thay thế hoàn toàn menu alert emoji bằng giao diện Settings bảng nhóm (Inset Grouped) chuẩn iOS, có trang Quản lý Hashtag chuyên biệt (vuốt để xóa, thêm mới, khôi phục).
+            - **Mở Menu bằng Cử Chỉ**: Nhấn giữ (>= 0.5s) hoặc chạm 2 lần vào tab "Trang chủ" ở góc dưới bên trái để mở cài đặt. Màn hình hoàn toàn sạch không nút nổi.
             - **100% Zero-Dependency**: Hoạt động mượt mà trên Esign / Scarlet không cần Jailbreak hay CydiaSubstrate.
           files: |
             TikTokAutoComment_LQ.dylib
