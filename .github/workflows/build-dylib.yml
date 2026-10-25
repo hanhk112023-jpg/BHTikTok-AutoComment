@@ -19,8 +19,9 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Theos & iOS SDK
+      - name: Setup Theos, ldid & iOS SDK
         run: |
+          brew install ldid || true
           git clone --recursive https://github.com/theos/theos.git ~/theos
           git clone --depth=1 https://github.com/theos/sdks.git /tmp/theos-sdks
           cp -R /tmp/theos-sdks/iPhoneOS16.5.sdk ~/theos/sdks/
