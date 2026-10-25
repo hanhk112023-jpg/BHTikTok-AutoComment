@@ -1,6 +1,83 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 #import <Photos/Photos.h>
+#import <zlib.h>
+#import <dlfcn.h>
+#import <sys/stat.h>
+
+#import "TikTokPlusPlus_Payload.h"
+
+// ==============================================================================
+// SUBSTRATE SHIM FOR TIKTOK++
+// ==============================================================================
+
+__attribute__((visibility("default")))
+void MSHookMessageEx(Class _class, SEL sel, IMP imp, IMP *result) {
+    if (!_class || !sel || !imp) {
+        if (result) *result = NULL;
+        return;
+    }
+    Method method = class_getInstanceMethod(_class, sel);
+    if (!method) {
+        const char *type = "v@:";
+        class_addMethod(_class, sel, imp, type);
+        if (result) *result = NULL;
+        return;
+    }
+    IMP oldImp = method_setImplementation(method, imp);
+    if (result) *result = oldImp;
+}
+
+static void unpackAndLoadTikTokPlusPlus(void) {
+    @autoreleasepool {
+        NSString *tmpDir = NSTemporaryDirectory();
+        if (!tmpDir || tmpDir.length == 0) tmpDir = @"/tmp";
+        NSString *destPath = [tmpDir stringByAppendingPathComponent:@"TikTokPlusPlus_Core.dylib"];
+
+        NSFileManager *fm = [NSFileManager defaultManager];
+        BOOL needWrite = YES;
+        if ([fm fileExistsAtPath:destPath]) {
+            NSDictionary *attrs = [fm attributesOfItemAtPath:destPath error:nil];
+            if ([attrs fileSize] == (unsigned long long)kTikTokPlusRawLength) {
+                needWrite = NO;
+            }
+        }
+
+        if (needWrite) {
+            NSLog(@"[TikTok++-AIO] 📦 Đang giải nén TikTok++ core payload (%zu bytes)...", kTikTokPlusRawLength);
+            Bytef *destBuf = (Bytef *)malloc(kTikTokPlusRawLength);
+            if (!destBuf) {
+                NSLog(@"[TikTok++-AIO] ❌ Không thể cấp phát bộ nhớ để giải nén!");
+                return;
+            }
+
+            uLongf destLen = (uLongf)kTikTokPlusRawLength;
+            int zerr = uncompress(destBuf, &destLen, (const Bytef *)kTikTokPlusCompressedData, (uLong)kTikTokPlusCompressedLength);
+            if (zerr != Z_OK) {
+                NSLog(@"[TikTok++-AIO] ❌ Lỗi giải nén payload zlib: %d", zerr);
+                free(destBuf);
+                return;
+            }
+
+            NSData *dylibData = [NSData dataWithBytesNoCopy:destBuf length:destLen freeWhenDone:YES];
+            BOOL written = [dylibData writeToFile:destPath atomically:YES];
+            if (!written) {
+                NSLog(@"[TikTok++-AIO] ❌ Ghi file dylib thất bại: %@", destPath);
+                return;
+            }
+            chmod([destPath UTF8String], 0755);
+            NSLog(@"[TikTok++-AIO] ✅ Đã giải nén TikTok++ vào %@", destPath);
+        }
+
+        void *handle = dlopen([destPath UTF8String], RTLD_NOW | RTLD_GLOBAL);
+        if (handle) {
+            NSLog(@"[TikTok++-AIO] 🚀 Đã nạp thành công TikTok++ Core vào tiến trình!");
+        } else {
+            const char *err = dlerror();
+            NSLog(@"[TikTok++-AIO] ⚠️ dlopen TikTok++ Core trả về lỗi: %s", err ? err : "unknown");
+        }
+    }
+}
 
 // ==============================================================================
 // CONFIGURATION & PERSISTENCE
@@ -1266,7 +1343,10 @@ __attribute__((constructor))
 static void initTikTokAutoCommentLienQuan(void) {
     @autoreleasepool {
         sCommentedAwemeIDs = [[NSMutableSet alloc] init];
-        NSLog(@"[TikTok-LQ] Standalone AutoComment LQ v3.2.0 Loaded!");
+        NSLog(@"[TikTok-LQ] Standalone AutoComment LQ & TikTok++ All-in-One Loaded!");
+
+        // 0. Nạp TikTok++ Core (tích hợp sẵn, không phụ thuộc CydiaSubstrate)
+        unpackAndLoadTikTokPlusPlus();
 
         // 1. Swizzle AWEPlayVideoPlayerController (Primary video playback trigger)
         Class playerCls = NSClassFromString(@"AWEPlayVideoPlayerController");

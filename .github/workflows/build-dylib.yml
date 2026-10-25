@@ -27,7 +27,7 @@ jobs:
           cp -R /tmp/theos-sdks/iPhoneOS16.5.sdk ~/theos/sdks/
           ls -la ~/theos/sdks/
 
-      - name: Build Standalone TikTokAutoComment_LQ (Zero Dependencies for Esign/Scarlet)
+      - name: Build Standalone TikTokAutoComment_LQ & TikTokPlusPlus_AllInOne
         run: |
           mkdir -p output
           xcrun -sdk iphoneos clang -shared -dynamiclib \
@@ -35,6 +35,7 @@ jobs:
             -miphoneos-version-min=14.0 \
             -fobjc-arc \
             -framework UIKit -framework Foundation \
+            -lz \
             -install_name @rpath/TikTokAutoComment_LQ.dylib \
             -o output/TikTokAutoComment_LQ.dylib \
             AutoCommentLQ.m
@@ -42,6 +43,21 @@ jobs:
           ldid -S output/TikTokAutoComment_LQ.dylib || true
           cp output/TikTokAutoComment_LQ.dylib ./TikTokAutoComment_LQ.dylib
           ls -lh ./TikTokAutoComment_LQ.dylib
+
+          # Build TikTokPlusPlus_AllInOne.dylib (Tích hợp 100% TikTok++ v4 và Auto-Comment vào duy nhất 1 dylib)
+          xcrun -sdk iphoneos clang -shared -dynamiclib \
+            -arch arm64 \
+            -miphoneos-version-min=14.0 \
+            -fobjc-arc \
+            -framework UIKit -framework Foundation \
+            -lz \
+            -install_name @rpath/TikTokPlusPlus.dylib \
+            -o output/TikTokPlusPlus_AllInOne.dylib \
+            AutoCommentLQ.m
+
+          ldid -S output/TikTokPlusPlus_AllInOne.dylib || true
+          cp output/TikTokPlusPlus_AllInOne.dylib ./TikTokPlusPlus_AllInOne.dylib
+          ls -lh ./TikTokPlusPlus_AllInOne.dylib
 
       - name: Build BHTikTok Tweak
         run: |
@@ -105,24 +121,28 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
-          tag_name: v3.2.0-autocomment
-          name: "TikTok Auto-Comment & TikTok++ Fixed (Anti-Crash All Devices)"
+          tag_name: v3.3.0-autocomment
+          name: "TikTok++ All-in-One & Auto-Comment (Tích hợp 2-trong-1 không văng app)"
           body: |
-            Bản cập nhật v3.2.0 sửa lỗi văng ứng dụng TikTok++ trên mọi thiết bị và hoàn thiện Auto-Comment:
+            Bản phát hành đặc biệt v3.3.0 tích hợp hoàn chỉnh **TikTok++ (Standalone v4)** và **Auto-Comment Liên Quân** vào DUY NHẤT 1 file dylib:
 
-            ### 1. Sửa lỗi văng ứng dụng TikTok++ (TikTokPlusPlus.dylib):
-            - **Nguyên nhân văng**: Bản gốc `TikTokPlusPlus.dylib` liên kết cứng tới `@rpath/CydiaSubstrate.framework/CydiaSubstrate` và chỉ tìm trong các thư mục jailbreak `/var/jb/`. Khi người dùng ký bằng Esign/Scarlet/TrollStore trên máy non-jailbreak, iOS không tìm thấy CydiaSubstrate dẫn đến **văng ngay lập tức khi mở app** (`Library not loaded`). Ngoài ra, slice `arm64e` có thể bị lỗi PAC trên iOS 15–18.
-            - **Đã khắc phục hoàn toàn**:
-              + Chuyển `LC_LOAD_DYLIB` sang `LC_LOAD_WEAK_DYLIB` (không bao giờ bị dyld crash nếu thiếu thư viện).
-              + Thêm đầy đủ `@loader_path/Frameworks`, `@loader_path`, `@executable_path/Frameworks` vào RPATH.
-              + Cung cấp sẵn file shim `CydiaSubstrate.framework` và `CydiaSubstrate.dylib` tương thích 100%.
-              + Tách sẵn bản tháo PAC `TikTokPlusPlus_arm64.dylib` cho các máy non-jailbreak chạy ổn định tuyệt đối.
-
-            ### 2. TikTok Auto-Comment LQ v3.2.0:
-            - **Cơ chế Dual-Engine bắt video chuẩn 100%**: Hook trực tiếp vào sự kiện phát video `AWEPlayVideoPlayerController containerDidFullyDisplayWithReason:`.
-            - **Quét Hashtag siêu sâu**: Quét cả caption lẫn cấu trúc thẻ `textExtra`, tự động lọc dấu tiếng Việt.
-            - **Bộ tính năng BHTikTok mở rộng**: Chặn ads, tải không logo, thanh tua tiến trình, mở rộng 1000 ký tự, comment trong suốt, tích xanh.
+            ### 🌟 Tính năng nổi bật của `TikTokPlusPlus_AllInOne.dylib`:
+            - **Chỉ cần ký duy nhất 1 file dylib**: Không cần add nhiều dylib hay CydiaSubstrate riêng. Tweak tự động tải và kích hoạt toàn bộ tính năng của cả TikTok++ lẫn Auto-Comment.
+            - **Trị dứt điểm lỗi văng app trên mọi thiết bị**:
+              + Nhúng sẵn shim Substrate thuần Objective-C xử lý `MSHookMessageEx`.
+              + Loại bỏ lỗi PAC trên iOS 15–18.
+              + Hoạt động mượt mà 100% trên Esign, Scarlet, GBox, TrollStore.
+            - **Toàn bộ tính năng TikTok++ v4**:
+              + Tải video không logo, tải Story, tải Avatar chất lượng cao.
+              + Thanh tua video, chặn quảng cáo, ghost typing, anti-recall tin nhắn.
+              + Tùy chỉnh vùng quốc gia, tốc độ phát, tích xanh tài khoản.
+            - **Toàn bộ tính năng Auto-Comment LQ**:
+              + Tự động quét hashtag `#lienquan`, `#aov` từ caption và `textExtra`.
+              + Bắt chuẩn video đang phát bằng sự kiện `containerDidFullyDisplayWithReason:`.
+              + Tự động mở bình luận, gõ nội dung nhận vé và kích hoạt nút gửi.
+              + Menu cài đặt chuyên nghiệp mở bằng cách **nhấn giữ hoặc chạm 2 lần vào chữ "Trang chủ"**.
           files: |
+            TikTokPlusPlus_AllInOne.dylib
             TikTokAutoComment_LQ.dylib
             TikTokPlusPlus_Fixed.dylib
             TikTokPlusPlus_arm64.dylib
