@@ -27,35 +27,71 @@ jobs:
           cp -R /tmp/theos-sdks/iPhoneOS16.5.sdk ~/theos/sdks/
           ls -la ~/theos/sdks/
 
-      - name: Build Tweak
+      - name: Build Standalone TikTokAutoComment_LQ (Zero Dependencies for Esign/Scarlet)
+        run: |
+          mkdir -p output
+          xcrun -sdk iphoneos clang -shared -dynamiclib \
+            -arch arm64 -arch arm64e \
+            -miphoneos-version-min=14.0 \
+            -fobjc-arc \
+            -framework UIKit -framework Foundation \
+            -install_name @rpath/TikTokAutoComment_LQ.dylib \
+            -o output/TikTokAutoComment_LQ.dylib \
+            AutoCommentLQ.m
+
+          ldid -S output/TikTokAutoComment_LQ.dylib || true
+          cp output/TikTokAutoComment_LQ.dylib ./TikTokAutoComment_LQ.dylib
+          ls -lh ./TikTokAutoComment_LQ.dylib
+
+      - name: Build BHTikTok Tweak
         run: |
           export THEOS=$HOME/theos
           make clean
           make package FINALPACKAGE=1
-          mkdir -p output
           find .theos/ -name "*.dylib" -exec cp {} output/BHTikTok_AutoComment.dylib \;
-          cp output/BHTikTok_AutoComment.dylib ./BHTikTok_AutoComment.dylib || true
-          ls -lh ./BHTikTok_AutoComment.dylib
+          
+          # Bản gốc rootful
+          cp output/BHTikTok_AutoComment.dylib ./BHTikTok_AutoComment_Rootful.dylib
+          
+          # Sửa install_name và rpath sang @rpath để dùng được cho TrollFools / Esign / Sideloadly
+          install_name_tool -id @rpath/BHTikTok.dylib output/BHTikTok_AutoComment.dylib || true
+          install_name_tool -change /Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate @rpath/CydiaSubstrate.framework/CydiaSubstrate output/BHTikTok_AutoComment.dylib || true
+          install_name_tool -add_rpath @executable_path/Frameworks output/BHTikTok_AutoComment.dylib || true
+          install_name_tool -add_rpath @loader_path/Frameworks output/BHTikTok_AutoComment.dylib || true
+          
+          # Ký lại sau khi sửa LC_LOAD_DYLIB
+          ldid -S output/BHTikTok_AutoComment.dylib || true
+          
+          cp output/BHTikTok_AutoComment.dylib ./BHTikTok_AutoComment_TrollFools.dylib
+          cp output/BHTikTok_AutoComment.dylib ./BHTikTok_AutoComment.dylib
+          ls -lh ./BHTikTok_AutoComment*.dylib
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: BHTikTok-AutoComment-dylib
+          name: TikTok-AutoComment-dylibs
           path: |
-            BHTikTok_AutoComment.dylib
+            TikTokAutoComment_LQ.dylib
+            BHTikTok_AutoComment*.dylib
             packages/*.deb
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
-          tag_name: v1.0.0-autocomment
-          name: "BHTikTok Auto-Comment v1.0.0"
+          tag_name: v2.0.0-autocomment
+          name: "TikTok Auto-Comment v2.0.0 (Esign, Scarlet & TrollFools)"
           body: |
-            BHTikTok++ iOS Tweak kèm tính năng Auto-Comment Liên Quân Mobile (#lienquan, #aov, #lienquanmobile)
-            Nội dung comment: `Nhập mã để được nhận 38 vé nhảy: avsqjyM3n7`
+            Tự động comment mã vé nhảy Liên Quân trên TikTok iOS:
+            - **`TikTokAutoComment_LQ.dylib` (KHUYÊN DÙNG CHO ESIGN / SCARLET / GBOX)**: 
+              - Hoạt động 100% độc lập, KHÔNG CẦN CydiaSubstrate, không cần Jailbreak!
+              - Tự động nhận diện hashtag `#lienquan`, `#aov`, `#lienquanmobile` từ server JSON.
+              - Có nút 🎮 nổi trên màn hình để bật/tắt, chỉnh sửa nội dung comment, bật auto-scroll.
+              - Báo banner thông báo xanh ngay khi mở app xác nhận đã kích hoạt thành công.
+            - **`BHTikTok_AutoComment_TrollFools.dylib`**: Bản mod BHTikTok đầy đủ tính năng tải video/chống quảng cáo.
           files: |
-            BHTikTok_AutoComment.dylib
+            TikTokAutoComment_LQ.dylib
+            BHTikTok_AutoComment*.dylib
             packages/*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
