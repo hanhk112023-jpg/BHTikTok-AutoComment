@@ -11,7 +11,7 @@
 // SUBSTRATE SHIM FOR TIKTOK++
 // ==============================================================================
 
-__attribute__((visibility("default")))
+__attribute__((weak, visibility("default")))
 void MSHookMessageEx(Class _class, SEL sel, IMP imp, IMP *result) {
     if (!_class || !sel || !imp) {
         if (result) *result = NULL;

@@ -88,7 +88,7 @@ jobs:
             -framework Foundation \
             -install_name @rpath/CydiaSubstrate.framework/CydiaSubstrate \
             -o output/CydiaSubstrate \
-            CydiaSubstrate.m
+            shim/CydiaSubstrate.m
 
           mkdir -p CydiaSubstrate.framework
           cp output/CydiaSubstrate CydiaSubstrate.framework/CydiaSubstrate
@@ -98,7 +98,7 @@ jobs:
             -framework Foundation \
             -install_name @rpath/CydiaSubstrate.dylib \
             -o CydiaSubstrate.dylib \
-            CydiaSubstrate.m
+            shim/CydiaSubstrate.m
           ldid -S CydiaSubstrate.dylib || true
 
           zip -r CydiaSubstrate.framework.zip CydiaSubstrate.framework
