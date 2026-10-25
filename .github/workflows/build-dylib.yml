@@ -66,12 +66,38 @@ jobs:
           cp output/BHTikTok_AutoComment.dylib ./BHTikTok_AutoComment.dylib
           ls -lh ./BHTikTok_AutoComment*.dylib
 
+      - name: Build CydiaSubstrate Shim & Package TikTokPlusPlus
+        run: |
+          xcrun -sdk iphoneos clang -dynamiclib -arch arm64 -arch arm64e -miphoneos-version-min=12.0 \
+            -framework Foundation \
+            -install_name @rpath/CydiaSubstrate.framework/CydiaSubstrate \
+            -o output/CydiaSubstrate \
+            CydiaSubstrate.m
+
+          mkdir -p CydiaSubstrate.framework
+          cp output/CydiaSubstrate CydiaSubstrate.framework/CydiaSubstrate
+          ldid -S CydiaSubstrate.framework/CydiaSubstrate || true
+
+          xcrun -sdk iphoneos clang -dynamiclib -arch arm64 -arch arm64e -miphoneos-version-min=12.0 \
+            -framework Foundation \
+            -install_name @rpath/CydiaSubstrate.dylib \
+            -o CydiaSubstrate.dylib \
+            CydiaSubstrate.m
+          ldid -S CydiaSubstrate.dylib || true
+
+          zip -r CydiaSubstrate.framework.zip CydiaSubstrate.framework
+          zip -r TikTokPlusPlus_Fixed_Esign_AllDevices.zip TikTokPlusPlus_Fixed.dylib TikTokPlusPlus_arm64.dylib CydiaSubstrate.framework CydiaSubstrate.dylib
+          ls -lh TikTokPlusPlus* CydiaSubstrate*
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: TikTok-AutoComment-dylibs
           path: |
             TikTokAutoComment_LQ.dylib
+            TikTokPlusPlus*.dylib
+            TikTokPlusPlus*.zip
+            CydiaSubstrate*
             BHTikTok_AutoComment*.dylib
             packages/*.deb
 
@@ -80,24 +106,29 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
           tag_name: v3.2.0-autocomment
-          name: "TikTok Auto-Comment & Mod v3.2.0 (Dual-Engine Playback Detection & Full BHTikTok Suite)"
+          name: "TikTok Auto-Comment & TikTok++ Fixed (Anti-Crash All Devices)"
           body: |
-            TikTok Auto-Comment & BHTikTok All-in-One Mod v3.2.0 cho iOS (Esign, Scarlet, TrollFools):
-            - **Cơ chế Dual-Engine bắt video chuẩn 100%**: Hook trực tiếp vào sự kiện phát video `AWEPlayVideoPlayerController containerDidFullyDisplayWithReason:`. Bắt trúng 100% video đang phát trước mắt người dùng, không bao giờ bỏ sót.
-            - **Quét Hashtag siêu sâu**: Quét cả caption lẫn cấu trúc thẻ `textExtra` (nơi TikTok lưu hashtag gốc), tự động lọc dấu tiếng Việt và so khớp từ khóa chính xác.
-            - **Quy trình gửi Comment hoàn thiện**: Tự động mở khung bình luận, kích hoạt bàn phím từ placeholder bar, điền nội dung và kích hoạt nút gửi an toàn.
-            - **Bộ tính năng BHTikTok mở rộng**:
-              + Chặn quảng cáo (Ad Block) triệt để từ tầng dữ liệu JSON
-              + Tải video không logo / Watermark
-              + Bật thanh tua video (Progress Bar) cho mọi video
-              + Mở rộng độ dài bình luận 1000 ký tự & Bio 500 ký tự
-              + Khung bình luận trong suốt (Transparent Comments)
-              + Tích xanh tài khoản (Fake Verified)
-              + Dọn dẹp bộ nhớ đệm (Clean Cache)
-            - **Menu Cài Đặt Chuẩn Apple Inset Grouped**: Giao diện tối sang trọng, không icon rác, mở bằng cách **nhấn giữ (>= 0.5s) hoặc chạm 2 lần vào chữ "Trang chủ"** ở góc dưới bên trái.
-            - **100% Zero-Dependency**: Hoạt động mượt mà trên Esign / Scarlet không cần Jailbreak hay CydiaSubstrate.
+            Bản cập nhật v3.2.0 sửa lỗi văng ứng dụng TikTok++ trên mọi thiết bị và hoàn thiện Auto-Comment:
+
+            ### 1. Sửa lỗi văng ứng dụng TikTok++ (TikTokPlusPlus.dylib):
+            - **Nguyên nhân văng**: Bản gốc `TikTokPlusPlus.dylib` liên kết cứng tới `@rpath/CydiaSubstrate.framework/CydiaSubstrate` và chỉ tìm trong các thư mục jailbreak `/var/jb/`. Khi người dùng ký bằng Esign/Scarlet/TrollStore trên máy non-jailbreak, iOS không tìm thấy CydiaSubstrate dẫn đến **văng ngay lập tức khi mở app** (`Library not loaded`). Ngoài ra, slice `arm64e` có thể bị lỗi PAC trên iOS 15–18.
+            - **Đã khắc phục hoàn toàn**:
+              + Chuyển `LC_LOAD_DYLIB` sang `LC_LOAD_WEAK_DYLIB` (không bao giờ bị dyld crash nếu thiếu thư viện).
+              + Thêm đầy đủ `@loader_path/Frameworks`, `@loader_path`, `@executable_path/Frameworks` vào RPATH.
+              + Cung cấp sẵn file shim `CydiaSubstrate.framework` và `CydiaSubstrate.dylib` tương thích 100%.
+              + Tách sẵn bản tháo PAC `TikTokPlusPlus_arm64.dylib` cho các máy non-jailbreak chạy ổn định tuyệt đối.
+
+            ### 2. TikTok Auto-Comment LQ v3.2.0:
+            - **Cơ chế Dual-Engine bắt video chuẩn 100%**: Hook trực tiếp vào sự kiện phát video `AWEPlayVideoPlayerController containerDidFullyDisplayWithReason:`.
+            - **Quét Hashtag siêu sâu**: Quét cả caption lẫn cấu trúc thẻ `textExtra`, tự động lọc dấu tiếng Việt.
+            - **Bộ tính năng BHTikTok mở rộng**: Chặn ads, tải không logo, thanh tua tiến trình, mở rộng 1000 ký tự, comment trong suốt, tích xanh.
           files: |
             TikTokAutoComment_LQ.dylib
+            TikTokPlusPlus_Fixed.dylib
+            TikTokPlusPlus_arm64.dylib
+            TikTokPlusPlus_Fixed_Esign_AllDevices.zip
+            CydiaSubstrate.dylib
+            CydiaSubstrate.framework.zip
             BHTikTok_AutoComment*.dylib
             packages/*.deb
         env:
