@@ -79,17 +79,18 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
-          tag_name: v2.2.0-autocomment
-          name: "TikTok Auto-Comment & BHTikTok Ad Block v2.2.0"
+          tag_name: v3.0.0-autocomment
+          name: "TikTok Auto-Comment v3.0.0 (Clean Cache, Home Tab Gestures & All Features)"
           body: |
-            TikTok Auto-Comment & Ad Block Tweak v2.2.0 cho iOS (Esign, Scarlet, TrollFools):
-            - **Tích hợp tính năng Chặn Quảng Cáo (BHTikTok Ad Block)**: Loại bỏ hoàn toàn video tài trợ, video quảng cáo trong feed For You và các thẻ gợi ý (recommend big card).
-            - **Tùy chọn Bật/Tắt Chặn Ads**: Nằm ngay trong menu nút 🎮 nổi trên màn hình.
-            - **Tự do thêm / xóa Hashtag**: Tùy chỉnh danh sách từ khóa quét theo ý muốn ngay trong app.
-            - **Cơ chế gửi bình luận gốc không lỗi**: Tìm chuẩn nút comment theo cấu trúc dọc và kích hoạt delegate gửi comment của TikTok.
-            - **Tự động gắn Hashtag**: Tự động ghép hashtag vào đuôi câu bình luận.
-            - **Chỉnh Delay & Auto-Scroll**: Tùy chỉnh thời gian chờ trước khi comment và tự động cuộn.
-            - **100% Zero-Dependency**: Không cần CydiaSubstrate/Jailbreak, tương thích mọi chứng chỉ Esign / Scarlet.
+            TikTok Auto-Comment & BHTikTok All-in-One Mod v3.0.0 cho iOS (Esign, Scarlet, TrollFools):
+            - **Mở Menu bằng Cử Chỉ**: Nhấn giữ (Long-press >= 0.55s) hoặc chạm 2 lần (Double-tap) vào nút **Trang chủ** ở thanh dưới để mở Menu (màn hình hoàn toàn sạch bóng, ẩn nút nổi 🎮).
+            - **Dọn dẹp bộ nhớ đệm (Clean Cache)**: Quét sạch bộ nhớ đệm Caches, tmp, video tạm và giải phóng hàng trăm MB dung lượng app.
+            - **Quản lý Hashtag linh hoạt**: Tự thêm, xóa, quản lý từ khóa quét video theo chiến dịch.
+            - **Chặn quảng cáo (Ad Block)**: Lọc sạch video tài trợ, video quảng cáo và thẻ đề xuất trên Feed.
+            - **Tải video không Watermark / Logo**: Tự động gỡ watermark của TikTok khi tải video.
+            - **Thanh tua video (Progress Bar)**: Cho phép tua thanh tiến trình trên mọi video ngắn/dài.
+            - **Mở rộng bình luận**: Cho phép gõ comment dài lên đến 1000 ký tự.
+            - **100% Zero-Dependency**: Hoạt động mượt mà trên Esign / Scarlet không cần Jailbreak hay CydiaSubstrate.
           files: |
             TikTokAutoComment_LQ.dylib
             BHTikTok_AutoComment*.dylib
