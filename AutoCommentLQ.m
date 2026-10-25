@@ -11,9 +11,22 @@
 #define PREF_AUTOSCROLL @"lq_auto_comment_autoscroll"
 #define PREF_APPEND_TAG @"lq_auto_comment_append_tag"
 #define PREF_DELAY @"lq_auto_comment_delay_sec"
+#define PREF_HIDE_ADS @"lq_hide_ads_enabled"
 
 #define DEFAULT_COMMENT_TEXT @"Nhập mã để được nhận 38 vé nhảy: avsqjyM3n7"
 #define DEFAULT_KEYWORDS_STR @"#lienquan,#aov,#lienquanmobile,liên quân"
+
+static BOOL getHideAdsEnabled(void) {
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:PREF_HIDE_ADS] == nil) {
+        return YES; // Mặc định BẬT chặn quảng cáo
+    }
+    return [[NSUserDefaults standardUserDefaults] boolForKey:PREF_HIDE_ADS];
+}
+
+static void setHideAdsEnabled(BOOL b) {
+    [[NSUserDefaults standardUserDefaults] setBool:b forKey:PREF_HIDE_ADS];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
 
 static BOOL getAutoCommentEnabled(void) {
     if ([[NSUserDefaults standardUserDefaults] objectForKey:PREF_ENABLED] == nil) {
@@ -289,7 +302,16 @@ static void showToastBanner(NSString *message, CGFloat duration) {
         [topVC presentViewController:delayAlert animated:YES completion:nil];
     }]];
 
-    // 5. Tự cuộn video (Auto-Scroll)
+    // 5. Chặn quảng cáo TikTok (BHTikTok Ad Block)
+    NSString *adTitle = getHideAdsEnabled() ? @"🛡️ Chặn quảng cáo (Ad Block): [BẬT ✅]" : @"🛡️ Chặn quảng cáo (Ad Block): [TẮT ❌]";
+    [alert addAction:[UIAlertAction actionWithTitle:adTitle
+                                              style:UIAlertActionStyleDefault
+                                            handler:^(UIAlertAction *action) {
+        setHideAdsEnabled(!getHideAdsEnabled());
+        showToastBanner(getHideAdsEnabled() ? @"🛡️ Đã BẬT Chặn quảng cáo TikTok!" : @"⚠️ Đã TẮT Chặn quảng cáo!", 2.0);
+    }]];
+
+    // 6. Tự cuộn video (Auto-Scroll)
     [alert addAction:[UIAlertAction actionWithTitle:getAutoScroll() ? @"⏭️ Tắt Tự Cuộn Video (Auto-Scroll)" : @"⏭️ Bật Tự Cuộn Video (Auto-Scroll)"
                                               style:UIAlertActionStyleDefault
                                             handler:^(UIAlertAction *action) {
@@ -297,7 +319,7 @@ static void showToastBanner(NSString *message, CGFloat duration) {
         showToastBanner(getAutoScroll() ? @"✅ Đã bật Auto-Scroll" : @"❌ Đã tắt Auto-Scroll", 2.0);
     }]];
 
-    // 6. Xóa lịch sử đã comment
+    // 7. Xóa lịch sử đã comment
     [alert addAction:[UIAlertAction actionWithTitle:@"🧹 Xóa lịch sử video đã comment (để quét lại)"
                                               style:UIAlertActionStyleDestructive
                                             handler:^(UIAlertAction *action) {
@@ -434,12 +456,57 @@ static void SwizzleMethod(Class cls, SEL origSEL, SEL newSEL) {
 
 @interface NSObject (LQAwemeHook)
 - (id)lq_initWithDictionary:(id)arg1 error:(id *)arg2;
+- (BOOL)lq_isAds;
+- (BOOL)lq_isUserRecommendBigCard;
 @end
 
 @implementation NSObject (LQAwemeHook)
 
+- (BOOL)lq_isAds {
+    if (getHideAdsEnabled()) {
+        return NO;
+    }
+    return [self lq_isAds];
+}
+
+- (BOOL)lq_isUserRecommendBigCard {
+    if (getHideAdsEnabled()) {
+        return NO;
+    }
+    return [self lq_isUserRecommendBigCard];
+}
+
 - (id)lq_initWithDictionary:(id)arg1 error:(id *)arg2 {
     id orig = [self lq_initWithDictionary:arg1 error:arg2];
+
+    // CHẶN QUẢNG CÁO BHTIKTOK (AD-BLOCK)
+    if (getHideAdsEnabled() && orig) {
+        // 1. Kiểm tra thuộc tính isAds của model
+        @try {
+            if ([orig respondsToSelector:@selector(isAds)]) {
+                BOOL isAdsVal = [[orig valueForKey:@"isAds"] boolValue];
+                if (isAdsVal) {
+                    NSLog(@"[TikTok-AdBlock] 🛡️ Bỏ qua video Quảng Cáo (isAds = YES)");
+                    return nil;
+                }
+            }
+        } @catch (NSException *e) {}
+
+        // 2. Kiểm tra cờ quảng cáo trong raw JSON từ TikTok server
+        if ([arg1 isKindOfClass:[NSDictionary class]]) {
+            NSDictionary *dict = (NSDictionary *)arg1;
+            BOOL isServerAd = [dict[@"is_ads"] boolValue] ||
+                              [dict[@"is_ad"] boolValue] ||
+                              (dict[@"ad_info"] != nil && [dict[@"ad_info"] count] > 0) ||
+                              (dict[@"raw_ad_data"] != nil) ||
+                              [dict[@"commercial_type"] integerValue] > 0;
+            if (isServerAd) {
+                NSLog(@"[TikTok-AdBlock] 🛡️ Bỏ qua video Quảng Cáo từ Server JSON!");
+                return nil;
+            }
+        }
+    }
+
     if (orig && [arg1 isKindOfClass:[NSDictionary class]]) {
         NSDictionary *dict = (NSDictionary *)arg1;
         NSString *rawDesc = dict[@"desc"];
@@ -938,11 +1005,17 @@ static void initTikTokAutoCommentLienQuan(void) {
         NSLog(@"[TikTok-LQ] 🏷️ Danh sách hashtag: %@", [getKeywords() componentsJoinedByString:@", "]);
         NSLog(@"=================================================================");
 
-        // 1. Swizzle AWEAwemeModel (Bắt JSON trực tiếp từ server TikTok)
+        // 1. Swizzle AWEAwemeModel (Bắt JSON trực tiếp từ server TikTok & Chặn Ads)
         Class awemeCls = NSClassFromString(@"AWEAwemeModel");
         if (awemeCls) {
             SwizzleMethod(awemeCls, @selector(initWithDictionary:error:), @selector(lq_initWithDictionary:error:));
-            NSLog(@"[TikTok-LQ] ✅ Swizzled AWEAwemeModel initWithDictionary:error:");
+            if (class_getInstanceMethod(awemeCls, @selector(isAds))) {
+                SwizzleMethod(awemeCls, @selector(isAds), @selector(lq_isAds));
+            }
+            if (class_getInstanceMethod(awemeCls, @selector(isUserRecommendBigCard))) {
+                SwizzleMethod(awemeCls, @selector(isUserRecommendBigCard), @selector(lq_isUserRecommendBigCard));
+            }
+            NSLog(@"[TikTok-LQ] ✅ Swizzled AWEAwemeModel (init & Ad-Block)");
         }
 
         // 2. Swizzle Comment Panel ViewControllers

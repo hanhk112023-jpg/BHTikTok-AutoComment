@@ -79,16 +79,17 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
-          tag_name: v2.1.0-autocomment
-          name: "TikTok Auto-Comment v2.1.0 (Hashtag Manager & Reliable Native Comment)"
+          tag_name: v2.2.0-autocomment
+          name: "TikTok Auto-Comment & BHTikTok Ad Block v2.2.0"
           body: |
-            TikTok Auto-Comment Tweak v2.1.0 cho iOS (Esign, Scarlet, TrollFools):
-            - **Tự do thêm / xóa Hashtag**: Tùy chỉnh danh sách từ khóa quét theo ý muốn ngay trong app qua nút 🎮.
-            - **Sửa triệt để lỗi Auto-Comment**: Tìm nút Comment chuẩn theo cấu trúc dọc cạnh phải và kích hoạt delegate gửi comment của TikTok.
-            - **Tùy chọn tự động gắn Hashtag**: Tự động ghép hashtag vào đuôi câu bình luận.
-            - **Tùy chỉnh thời gian chờ (Delay)**: 1.5s, 2.5s, 4.0s, 6.0s chống checkpoint.
-            - **Tự động cuộn (Auto-Scroll)** mượt mà sang video tiếp theo.
-            - **100% Zero-Dependency**: Không cần CydiaSubstrate, chạy mượt trên mọi chứng chỉ Esign / Scarlet.
+            TikTok Auto-Comment & Ad Block Tweak v2.2.0 cho iOS (Esign, Scarlet, TrollFools):
+            - **Tích hợp tính năng Chặn Quảng Cáo (BHTikTok Ad Block)**: Loại bỏ hoàn toàn video tài trợ, video quảng cáo trong feed For You và các thẻ gợi ý (recommend big card).
+            - **Tùy chọn Bật/Tắt Chặn Ads**: Nằm ngay trong menu nút 🎮 nổi trên màn hình.
+            - **Tự do thêm / xóa Hashtag**: Tùy chỉnh danh sách từ khóa quét theo ý muốn ngay trong app.
+            - **Cơ chế gửi bình luận gốc không lỗi**: Tìm chuẩn nút comment theo cấu trúc dọc và kích hoạt delegate gửi comment của TikTok.
+            - **Tự động gắn Hashtag**: Tự động ghép hashtag vào đuôi câu bình luận.
+            - **Chỉnh Delay & Auto-Scroll**: Tùy chỉnh thời gian chờ trước khi comment và tự động cuộn.
+            - **100% Zero-Dependency**: Không cần CydiaSubstrate/Jailbreak, tương thích mọi chứng chỉ Esign / Scarlet.
           files: |
             TikTokAutoComment_LQ.dylib
             BHTikTok_AutoComment*.dylib
