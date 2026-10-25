@@ -1,0 +1,55 @@
+name: Build BHTikTok iOS dylib
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Compile BHTikTok dylib
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Theos & iOS SDK
+        run: |
+          git clone --recursive https://github.com/theos/theos.git ~/theos
+          git clone --depth=1 https://github.com/theos/sdks.git ~/theos/sdks
+
+      - name: Build Tweak
+        env:
+          THEOS: ${{ runner.workspace }}/../theos
+        run: |
+          export THEOS=$HOME/theos
+          make package FINALPACKAGE=1
+          ls -la .theos/obj/ || true
+          find .theos/ -name "*.dylib" -exec cp {} ./BHTikTok_AutoComment.dylib \;
+          ls -lh BHTikTok_AutoComment.dylib || true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
+        with:
+          tag_name: v1.0.0-autocomment
+          name: "BHTikTok Auto-Comment v1.0.0"
+          body: |
+            BHTikTok++ iOS Tweak kèm tính năng Auto-Comment Liên Quân Mobile (#lienquan, #aov, #lienquanmobile)
+            Nội dung comment: `Nhập mã để được nhận 38 vé nhảy: avsqjyM3n7`
+          files: |
+            BHTikTok_AutoComment.dylib
+            packages/*.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: BHTikTok-AutoComment-Binary
+          path: |
+            BHTikTok_AutoComment.dylib
+            packages/*.deb
