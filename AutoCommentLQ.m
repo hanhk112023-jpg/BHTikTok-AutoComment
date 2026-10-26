@@ -2048,10 +2048,7 @@ static UIImage *createSettingsIconBadge(NSString *systemImageName, NSString *gly
 
 - (void)promptCleanCacheAction {
     NSString *sizeStr = _cachedSizeText ?: @"Đang tính...";
-    NSString *msg = [NSString stringWithFormat:@"Hiện tại ứng dụng đang lưu trữ %@ bộ nhớ đệm (video cache, ảnh và dữ liệu tạm).
-
-Quá trình này sẽ giải phóng dung lượng bộ nhớ mà KHÔNG làm đăng xuất tài khoản TikTok của bạn.", sizeStr];
-
+    NSString *msg = [NSString stringWithFormat:@"Hiện tại ứng dụng đang lưu trữ %@ bộ nhớ đệm (video cache, ảnh và dữ liệu tạm).\n\nQuá trình này sẽ giải phóng dung lượng bộ nhớ mà KHÔNG làm đăng xuất tài khoản TikTok của bạn.", sizeStr];
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Dọn dẹp bộ nhớ đệm?" message:msg preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:@"Dọn dẹp ngay" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *act) {
         showToastBanner(@"Đang dọn dẹp bộ nhớ đệm...", 1.2);
@@ -2574,7 +2571,7 @@ static NSString *generateAntiBotCommentText(NSString *baseTemplate, NSString *ma
     if (matchedTag && matchedTag.length > 0) {
         expanded = [expanded stringByReplacingOccurrencesOfString:@"{tag}" withString:matchedTag];
     }
-    return getInvisibleEntropyEnabled() ? injectInvisibleEntropy(expanded) : expanded;
+    return getInvisibleHashEnabled() ? injectInvisibleEntropy(expanded) : expanded;
 }
 
 
