@@ -2506,6 +2506,104 @@ static NSString *stripAccentsAndLowercase(NSString *src) {
     return [str lowercaseString];
 }
 
+static NSMutableArray<NSDate *> *sCommentTimestamps = nil;
+static NSTimeInterval sLastCommentTime = 0.0;
+
+static BOOL checkRateLimitAllowsComment(void) {
+    if (!sCommentTimestamps) {
+        sCommentTimestamps = [[NSMutableArray alloc] init];
+    }
+    NSDate *now = [NSDate date];
+    NSTimeInterval nowTime = [now timeIntervalSinceReferenceDate];
+
+    // Cooldown check (minimum 18 seconds between any two comments)
+    if (sLastCommentTime > 0.0 && (nowTime - sLastCommentTime) < 18.0) {
+        NSLog(@"[TikTok-LQ] ⚠️ Rate limit: Giãn cách tối thiểu 18s giữa 2 comment.");
+        return NO;
+    }
+
+    // Purge timestamps older than 1 hour (3600 seconds)
+    NSMutableArray *fresh = [NSMutableArray array];
+    for (NSDate *ts in sCommentTimestamps) {
+        if ([now timeIntervalSinceDate:ts] < 3600.0) {
+            [fresh addObject:ts];
+        }
+    }
+    sCommentTimestamps = fresh;
+
+    // Hourly cap (maximum 25 comments per hour)
+    if (sCommentTimestamps.count >= 25) {
+        NSLog(@"[TikTok-LQ] ⚠️ Rate limit: Đã đạt giới hạn 25 comment/giờ.");
+        return NO;
+    }
+
+    [sCommentTimestamps addObject:now];
+    sLastCommentTime = nowTime;
+    return YES;
+}
+
+static NSTimeInterval calculateRealisticWatchDelay(id model) {
+    NSTimeInterval duration = 15.0;
+    @try {
+        if ([model respondsToSelector:@selector(video)]) {
+            id video = [model valueForKey:@"video"];
+            if (video) {
+                duration = [[video valueForKey:@"duration"] doubleValue];
+                if (duration > 1000.0) duration /= 1000.0;
+            }
+        }
+    } @catch (NSException *e) {}
+
+    double ratio = 0.25 + ((double)(arc4random_uniform(15)) / 100.0);
+    NSTimeInterval target = duration * ratio;
+    double jitter = ((double)(arc4random_uniform(1500)) / 1000.0) - 0.5;
+    target += jitter;
+    if (target < 3.5) target = 3.5;
+    if (target > 12.0) target = 12.0;
+    return target;
+}
+
+static NSString *expandSpintax(NSString *text) {
+    if (!text || text.length == 0) return @"";
+    NSMutableString *result = [text mutableCopy];
+    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"\\{([^{}]+)\\}" options:0 error:nil];
+    while (YES) {
+        NSTextCheckingResult *match = [regex firstMatchInString:result options:0 range:NSMakeRange(0, result.length)];
+        if (!match) break;
+        NSRange fullRange = [match rangeAtIndex:0];
+        NSRange contentRange = [match rangeAtIndex:1];
+        NSString *content = [result substringWithRange:contentRange];
+        NSArray *options = [content componentsSeparatedByString:@"|"];
+        NSString *chosen = options[arc4random_uniform((uint32_t)options.count)];
+        [result replaceCharactersInRange:fullRange withString:chosen];
+    }
+    return result;
+}
+
+static NSString *injectInvisibleEntropy(NSString *text) {
+    if (!text || text.length == 0) return @"";
+    NSArray *zeroWidthChars = @[@"\u200B", @"\u200C", @"\u2060"];
+    NSMutableString *mut = [text mutableCopy];
+    int count = 1 + arc4random_uniform(3);
+    for (int i = 0; i < count; i++) {
+        NSUInteger idx = arc4random_uniform((uint32_t)mut.length + 1);
+        NSString *zw = zeroWidthChars[arc4random_uniform((uint32_t)zeroWidthChars.count)];
+        [mut insertString:zw atIndex:idx];
+    }
+    return mut;
+}
+
+static NSString *generateAntiBotCommentText(NSString *baseTemplate, NSString *matchedTag) {
+    if (!baseTemplate || baseTemplate.length == 0) {
+        baseTemplate = DEFAULT_COMMENT_TEXT;
+    }
+    NSString *expanded = expandSpintax(baseTemplate);
+    if (matchedTag && matchedTag.length > 0) {
+        expanded = [expanded stringByReplacingOccurrencesOfString:@"{tag}" withString:matchedTag];
+    }
+    return injectInvisibleEntropy(expanded);
+}
+
 
 static void processVideoModelForAutoComment(id model) {
     if (!model) return;
@@ -2725,10 +2823,8 @@ static void processVideoModelForAutoComment(id model) {
 static BOOL isAdAwemeModel(id model) {
     if (!model) return YES;
     @try {
-        if ([model respondsToSelector:@selector(isAds)] && [model isAds]) return YES;
         if ([[model valueForKey:@"isAds"] boolValue]) return YES;
         if ([[model valueForKey:@"isAd"] boolValue]) return YES;
-        if ([model respondsToSelector:@selector(isUserRecommendBigCard)] && [model isUserRecommendBigCard]) return YES;
         if ([[model valueForKey:@"isUserRecommendBigCard"] boolValue]) return YES;
         if ([model valueForKey:@"userRecommendModel"] != nil) return YES;
         if ([model valueForKey:@"friendsRecommendModel"] != nil) return YES;
@@ -2739,7 +2835,7 @@ static BOOL isAdAwemeModel(id model) {
         if ([[model valueForKey:@"commercialType"] integerValue] > 0) return YES;
         if ([model valueForKey:@"surveyModel"] != nil) return YES;
         if ([[model valueForKey:@"awemeType"] integerValue] == 101) return YES; // LIVE feed broadcast
-        if ([model respondsToSelector:@selector(isLive)] && [model isLive]) return YES;
+        if ([[model valueForKey:@"isLive"] boolValue]) return YES;
         if ([model valueForKey:@"liveStreamURL"] != nil || [model valueForKey:@"room"] != nil) return YES;
 
         NSInteger awemeType = [[model valueForKey:@"awemeType"] integerValue];
