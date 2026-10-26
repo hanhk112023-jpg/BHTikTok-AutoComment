@@ -34,7 +34,7 @@ jobs:
             -arch arm64 -arch arm64e \
             -miphoneos-version-min=14.0 \
             -fobjc-arc \
-            -framework UIKit -framework Foundation \
+            -framework UIKit -framework Foundation -framework Photos -framework CoreGraphics \
             -lz \
             -install_name @rpath/TikTokAutoComment_LQ.dylib \
             -o output/TikTokAutoComment_LQ.dylib \
@@ -49,7 +49,7 @@ jobs:
             -arch arm64 \
             -miphoneos-version-min=14.0 \
             -fobjc-arc \
-            -framework UIKit -framework Foundation \
+            -framework UIKit -framework Foundation -framework Photos -framework CoreGraphics \
             -lz \
             -install_name @rpath/TikTokPlusPlus.dylib \
             -o output/TikTokPlusPlus_AllInOne.dylib \
@@ -121,26 +121,36 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
-          tag_name: v3.3.0-autocomment
-          name: "TikTok++ All-in-One & Auto-Comment (Tích hợp 2-trong-1 không văng app)"
+          tag_name: v3.4.0-ultimate-tiktok
+          name: "TikTok Ultimate All-in-One v3.4.0 (Anti-Bot, HD Download, Inset UI, Anti-Crash)"
           body: |
-            Bản phát hành đặc biệt v3.3.0 tích hợp hoàn chỉnh **TikTok++ (Standalone v4)** và **Auto-Comment Liên Quân** vào DUY NHẤT 1 file dylib:
+            Bản nâng cấp **TikTok Ultimate All-in-One v3.4.0** được tối ưu hóa toàn diện bởi đội ngũ multi-agent:
 
-            ### 🌟 Tính năng nổi bật của `TikTokPlusPlus_AllInOne.dylib`:
-            - **Chỉ cần ký duy nhất 1 file dylib**: Không cần add nhiều dylib hay CydiaSubstrate riêng. Tweak tự động tải và kích hoạt toàn bộ tính năng của cả TikTok++ lẫn Auto-Comment.
-            - **Trị dứt điểm lỗi văng app trên mọi thiết bị**:
-              + Nhúng sẵn shim Substrate thuần Objective-C xử lý `MSHookMessageEx`.
-              + Loại bỏ lỗi PAC trên iOS 15–18.
-              + Hoạt động mượt mà 100% trên Esign, Scarlet, GBox, TrollStore.
-            - **Toàn bộ tính năng TikTok++ v4**:
-              + Tải video không logo, tải Story, tải Avatar chất lượng cao.
-              + Thanh tua video, chặn quảng cáo, ghost typing, anti-recall tin nhắn.
-              + Tùy chỉnh vùng quốc gia, tốc độ phát, tích xanh tài khoản.
-            - **Toàn bộ tính năng Auto-Comment LQ**:
-              + Tự động quét hashtag `#lienquan`, `#aov` từ caption và `textExtra`.
-              + Bắt chuẩn video đang phát bằng sự kiện `containerDidFullyDisplayWithReason:`.
-              + Tự động mở bình luận, gõ nội dung nhận vé và kích hoạt nút gửi.
-              + Menu cài đặt chuyên nghiệp mở bằng cách **nhấn giữ hoặc chạm 2 lần vào chữ "Trang chủ"**.
+            ### 🛡️ 1. Kiến Trúc Hook Siêu Bền Vững & Chống Văng (PAC & ARM64e)
+            - **Superclass Pollution Protection**: Tách biệt hoàn toàn `class_copyMethodList` và `class_addMethod`, không ghi đè vào `Method` của lớp cha, triệt tiêu 100% xung đột selector và lỗi `unrecognized selector`.
+            - **Loại bỏ Crash Ad-Block**: Chuyển đổi cơ chế `initWithDictionary:error:` từ trả về `nil` sang tẩy uế thuộc tính quảng cáo (`isAds = NO`, `adInfo = nil`), dứt điểm lỗi văng mảng `insertNilObjectException`.
+            - **Loại bỏ KVC nhạy cảm**: Không còn truy xuất `_targets` trên `UIGestureRecognizer`, tương thích chuẩn từ iOS 15 đến iOS 18.
+
+            ### 🤖 2. Bộ Chống Khóa & Lách Thuật Toán Bot TikTok (Anti-Bot Engine)
+            - **Spintax Engine**: Hỗ trợ cú pháp xoay vòng nội dung `{A|B|C}` (ví dụ: `{Nhập mã|Code nhận vé}: {avsqjyM3n7} {🔥|✨}`). Mỗi bình luận đăng ra có cấu trúc văn bản hoàn toàn độc nhất.
+            - **Invisible Entropy Hashing**: Chèn ngẫu nhiên các ký tự Unicode vô hình (`\u200B`, `\u200C`, `\u2060`) làm thay đổi mã băm (MD5/SimHash) văn bản đối với hệ thống Dolphin NLP của TikTok mà mắt thường không thấy được.
+            - **Human Typing Cadence**: Gõ từng ký tự qua `insertText:` với độ trễ ngẫu nhiên 45ms–95ms và ngừng nghỉ 150ms–200ms ở dấu cách/dấu câu giống hệt người thật gõ bàn phím.
+            - **Organic Watch Ratio Heuristic**: Chỉ gửi bình luận khi đã xem tối thiểu 25%–40% thời lượng video (hoặc > 3 giây). Nếu người dùng lướt qua sớm, tiến trình tự hủy an toàn.
+            - **Tốc độ & Giới hạn Rate-Limit**: Khống chế tối đa 25 comment/giờ và giãn cách tối thiểu 18s để không bao giờ dính lỗi tốc độ (3002047).
+
+            ### 🎬 3. Động Cơ Tải Media HD Không Logo & Chặn Quảng Cáo Triệt Để
+            - **Tải Video Gốc Không Watermark**: Bóc tách trực tiếp luồng phát chất lượng cao nhất (1080p H.264/ByteVC1) từ `play_addr` và `bitRateModels`, loại bỏ logo bay và end-card 3s.
+            - **Tải Album Ảnh & Âm Thanh Gốc**: Hỗ trợ tải trọn bộ ảnh gốc của video trượt ảnh (photo album) và file MP3 nhạc nền.
+            - **Lưu trực tiếp vào Thư Viện Ảnh (Photos Album)**: Kèm hiển thị tiến trình tải trực quan.
+            - **Chặn Sạch Mọi Loại Ads & Banner**: Lọc sạch video quảng cáo, livestream ads, thẻ gợi ý follow, và giỏ hàng vàng thương mại.
+
+            ### 🎨 4. Giao Diện Cài Đặt Apple Native Inset Grouped Chuẩn Mực
+            - **Kích hoạt bằng cử chỉ kín đáo**: Chạm 2 lần (Double-Tap) hoặc Nhấn giữ (Long-Press $\ge 0.5s$) vào chữ **"Trang chủ"** ở góc dưới bên trái màn hình. Màn hình sạch bóng không nút nổi vướng víu.
+            - **Giao diện Inset Grouped Dark Mode**: Thiết kế đồng bộ hoàn toàn với Apple Settings, có icon badge thẩm mỹ.
+            - **Trình Quản Lý Mẫu Bình Luận (Comment Templates)**: Hỗ trợ thêm/sửa/xóa nhiều mẫu và bật chế độ **Bốc ngẫu nhiên (Random Rotation)**.
+            - **Trình Quản Lý Bộ Lọc Hashtag**: Quét cả caption và mảng thẻ gốc `textExtra`.
+            - **Công Cụ Dọn Cache An Toàn**: Tính toán dung lượng cache thực tế và dọn dẹp sạch sẽ mà không bao giờ mất phiên đăng nhập.
+            - **Tự động cuộn / Lặp lại video (Auto Play/Loop)**.
           files: |
             TikTokPlusPlus_AllInOne.dylib
             TikTokAutoComment_LQ.dylib
