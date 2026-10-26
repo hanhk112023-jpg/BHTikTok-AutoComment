@@ -460,7 +460,7 @@ static void showToastBanner(NSString *message, CGFloat duration);
 static NSString *expandSpintax(NSString *input) {
     if (!input || input.length == 0) return @"";
     NSMutableString *result = [input mutableCopy];
-    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"\{([^{}]+)\}" options:0 error:nil];
+    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"\\{([^{}]+)\\}" options:0 error:nil];
     if (!regex) return result;
 
     while (YES) {
@@ -2378,8 +2378,9 @@ static void simulateHumanTyping(UIView *activeInput, NSString *text, void (^comp
     __block NSUInteger currentIndex = 0;
     NSUInteger totalLen = text.length;
 
-    __block void (^typeNextCharacter)(void);
-    typeNextCharacter = [^{
+    __block __weak void (^weakTypeNextCharacter)(void);
+    void (^typeNextCharacter)(void);
+    weakTypeNextCharacter = typeNextCharacter = ^{
         if (currentIndex >= totalLen) {
             // Typing complete, brief pause before submitting
             NSTimeInterval finishPause = 0.35 + (arc4random_uniform(250) / 1000.0);
@@ -2415,9 +2416,10 @@ static void simulateHumanTyping(UIView *activeInput, NSString *text, void (^comp
         }
 
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(keyDelay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            typeNextCharacter();
+            void (^strongType)(void) = weakTypeNextCharacter;
+            if (strongType) strongType();
         });
-    } copy];
+    };
 
     typeNextCharacter();
 }
