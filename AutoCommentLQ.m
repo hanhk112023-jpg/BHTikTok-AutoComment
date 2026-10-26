@@ -2563,45 +2563,18 @@ static NSTimeInterval calculateRealisticWatchDelay(id model) {
     return target;
 }
 
-static NSString *expandSpintax(NSString *text) {
-    if (!text || text.length == 0) return @"";
-    NSMutableString *result = [text mutableCopy];
-    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"\\{([^{}]+)\\}" options:0 error:nil];
-    while (YES) {
-        NSTextCheckingResult *match = [regex firstMatchInString:result options:0 range:NSMakeRange(0, result.length)];
-        if (!match) break;
-        NSRange fullRange = [match rangeAtIndex:0];
-        NSRange contentRange = [match rangeAtIndex:1];
-        NSString *content = [result substringWithRange:contentRange];
-        NSArray *options = [content componentsSeparatedByString:@"|"];
-        NSString *chosen = options[arc4random_uniform((uint32_t)options.count)];
-        [result replaceCharactersInRange:fullRange withString:chosen];
-    }
-    return result;
-}
-
-static NSString *injectInvisibleEntropy(NSString *text) {
-    if (!text || text.length == 0) return @"";
-    NSArray *zeroWidthChars = @[@"\u200B", @"\u200C", @"\u2060"];
-    NSMutableString *mut = [text mutableCopy];
-    int count = 1 + arc4random_uniform(3);
-    for (int i = 0; i < count; i++) {
-        NSUInteger idx = arc4random_uniform((uint32_t)mut.length + 1);
-        NSString *zw = zeroWidthChars[arc4random_uniform((uint32_t)zeroWidthChars.count)];
-        [mut insertString:zw atIndex:idx];
-    }
-    return mut;
-}
-
 static NSString *generateAntiBotCommentText(NSString *baseTemplate, NSString *matchedTag) {
     if (!baseTemplate || baseTemplate.length == 0) {
-        baseTemplate = DEFAULT_COMMENT_TEXT;
+        baseTemplate = getCommentText();
     }
-    NSString *expanded = expandSpintax(baseTemplate);
+    if (!baseTemplate || baseTemplate.length == 0) {
+        baseTemplate = @"Nhập mã để được nhận 38 vé nhảy: avsqjyM3n7";
+    }
+    NSString *expanded = getSpintaxEnabled() ? expandSpintax(baseTemplate) : baseTemplate;
     if (matchedTag && matchedTag.length > 0) {
         expanded = [expanded stringByReplacingOccurrencesOfString:@"{tag}" withString:matchedTag];
     }
-    return injectInvisibleEntropy(expanded);
+    return getInvisibleEntropyEnabled() ? injectInvisibleEntropy(expanded) : expanded;
 }
 
 
